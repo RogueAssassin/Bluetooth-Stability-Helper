@@ -1,6 +1,4 @@
 #!/system/bin/sh
-# Default conservative settings
-
 WATCHDOG_ENABLED=0
 WATCHDOG_INTERVAL=120
 RESTART_BT_ON_MISSING=0

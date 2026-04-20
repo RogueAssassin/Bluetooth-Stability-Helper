@@ -2,15 +2,22 @@
 
 ![Logo](assets/logo.svg)
 
-Improve BLE/Bluetooth stability on rooted Android devices with a conservative Magisk module designed for safer tuning, easier recovery, and clearer user controls.
+Improve BLE/Bluetooth stability on rooted Android devices with a conservative Magisk module designed for safer tuning, clearer recovery modes, and easier release downloads.
 
 Created by **RogueAssassin**  
 GitHub: https://github.com/RogueAssassin
 
-![Magisk](https://img.shields.io/badge/Magisk-Compatible-brightgreen)
-![Android](https://img.shields.io/badge/Android-13%2B-blue)
-![License](https://img.shields.io/badge/License-MIT-yellow)
-![Release](https://img.shields.io/badge/Release-v0.4.0-orange)
+[![Magisk](https://img.shields.io/badge/Magisk-Compatible-brightgreen)](#install)
+[![Android](https://img.shields.io/badge/Android-13%2B-blue)](#install)
+[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+[![Latest Release](https://img.shields.io/github/v/release/RogueAssassin/Bluetooth-Stability-Helper?display_name=tag)](https://github.com/RogueAssassin/Bluetooth-Stability-Helper/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/RogueAssassin/Bluetooth-Stability-Helper/total)](https://github.com/RogueAssassin/Bluetooth-Stability-Helper/releases)
+
+## Quick links
+
+- **Latest release page:** https://github.com/RogueAssassin/Bluetooth-Stability-Helper/releases/latest
+- **All releases:** https://github.com/RogueAssassin/Bluetooth-Stability-Helper/releases
+- **Issues:** https://github.com/RogueAssassin/Bluetooth-Stability-Helper/issues
 
 ## Highlights
 
@@ -21,6 +28,7 @@ GitHub: https://github.com/RogueAssassin
 - Import/export config bundles
 - Logging and status snapshots
 - Conservative watchdog and cooldown logic
+- GitHub release workflow that auto-attaches the install zip
 
 ## Modes
 
@@ -28,6 +36,19 @@ GitHub: https://github.com/RogueAssassin
 - **monitor** — health checks only, no recovery
 - **recover** — health checks with guarded restart attempts
 - **pixel_aggressive** — tighter intervals and optional idle tuning for Pixels
+
+## Install
+
+### Option 1 — GitHub Releases
+1. Open the latest release page
+2. Download `bt-stability-helper-v0.5.0.zip` or the newest version shown there
+3. Install it in Magisk
+4. Reboot
+
+### Option 2 — Build locally from source
+1. Enter the `module/` folder
+2. Zip the contents of the folder, not the folder itself
+3. Install the resulting zip in Magisk
 
 ## Magisk action button behavior
 
@@ -66,18 +87,30 @@ Files:
 
 Then tap the Magisk action button. The module will import them and keep the imported mode/config.
 
-## Install
+## GitHub release setup
 
-1. Download the latest release zip
-2. Install it in Magisk
-3. Reboot
-4. Start in **safe**
-5. Use the action button only after your first clean boot
+This repo is preconfigured so releases are easier for users to find and download.
 
-## Files for GitHub releases
+### What happens when you publish a tag
+Push a tag like:
 
-- Install zip: `releases/bt-stability-helper-v0.4.0.zip`
-- Source package: attach the repo zip from this project directory
+```bash
+git tag v0.5.0
+git push origin v0.5.0
+```
+
+The GitHub Actions workflow will:
+1. package the module
+2. create a GitHub Release
+3. attach the install zip as a release asset
+
+That means users can just click **Releases** and download the zip directly.
+
+### Recommended repo settings
+- Repository name: `Bluetooth-Stability-Helper`
+- Keep **Issues** enabled
+- Keep **Releases** enabled
+- Optional: pin the latest release in your GitHub repo description
 
 ## Notes
 

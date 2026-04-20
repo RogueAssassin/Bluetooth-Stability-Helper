@@ -1,17 +1,20 @@
 # Changelog
 
+## v0.5.0
+- Added release-focused GitHub setup
+- Added README quick links for Latest Release, Releases, and Issues
+- Added automated GitHub release workflow that packages the module and attaches the zip
+- Added release notes template
+- Added release issue template
+- Kept the module conservative and repo-ready for tag-based publishing
+
 ## v0.4.0
-- Added a polished GitHub-ready project layout
 - Added import/export config bundles
-- Added mode display before cycling in `action.sh`
 - Added exported status snapshots and log tails
-- Added safer cooldown handling for recovery
-- Added README, CONTRIBUTING, LICENSE, issue templates, and release workflow
-- Kept default install conservative and watchdog off in `safe`
+- Added polished GitHub-ready project layout
 
 ## v0.3.1
 - Added visible current/new mode output on action button
-- Improved branding for RogueAssassin
 
 ## v0.3.0
 - Added preset modes
