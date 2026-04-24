@@ -4,4 +4,4 @@ version=0.6.0
 versionCode=60
 author=RogueAssassin
 description=Generic BLE/Bluetooth stability helper with modes, import/export, status snapshots, Pokemod running checks, and GitHub auto-update support
-updateJson=https://raw.githubusercontent.com/RogueAssassin/bt-stability-helper/main/update.json
+updateJson=https://raw.githubusercontent.com/RogueAssassin/Bluetooth-Stability-Helper/main/update.json

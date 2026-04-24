@@ -3,20 +3,35 @@ name: Package Module
 on:
   workflow_dispatch:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+    paths:
+      - 'module/**'
+      - '.github/workflows/package.yml'
 
 jobs:
-  build:
+  package:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read module version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(grep '^version=' module/module.prop | cut -d= -f2)
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "zip_name=bt-stability-helper-v${VERSION}.zip" >> "$GITHUB_OUTPUT"
+
       - name: Create install zip
+        shell: bash
         run: |
           cd module
-          zip -r ../bt-stability-helper-${GITHUB_REF_NAME#v}.zip .
+          zip -r "../${{ steps.version.outputs.zip_name }}" .
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: bt-stability-helper
-          path: bt-stability-helper-*.zip
+          name: bt-stability-helper-v${{ steps.version.outputs.version }}
+          path: ${{ steps.version.outputs.zip_name }}
