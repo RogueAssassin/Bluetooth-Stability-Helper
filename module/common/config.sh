@@ -16,3 +16,10 @@ LOG_ROTATE_SIZE_KB=256
 FAILURE_THRESHOLD=3
 RECOVERY_COOLDOWN=600
 MODE_DEFAULT="safe"
+
+# Pokemod support checker
+POKEMOD_CHECK_ENABLED=0
+POKEMOD_REQUIRED_FOR_GO=1
+POKEMOD_WARN_ONLY=1
+POKEMOD_PACKAGE_CANDIDATES="dev.pokemod com.pokemod com.pokemod.app com.pokemod.app.public com.pokemod.espresso com.roswell108.pokemodko"
+POKEMON_GO_PACKAGE="com.nianticlabs.pokemongo"

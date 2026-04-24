@@ -1,33 +1,54 @@
-name: Build and Release Module
+name: Build Magisk Release
 
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*.*.*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version without v, for example 0.6.0'
+        required: true
+        default: '0.6.0'
 
 permissions:
   contents: write
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build install zip
+      - name: Resolve version
+        id: vars
+        shell: bash
         run: |
-          cd module
-          VERSION=$(grep '^version=' module.prop | cut -d= -f2)
-          ZIP_NAME="bt-stability-helper-${VERSION}.zip"
-          zip -r "../${ZIP_NAME}" .
-          echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+            TAG="v${VERSION}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+            VERSION="${TAG#v}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "zip=bt-stability-helper-${VERSION}.zip" >> "$GITHUB_OUTPUT"
 
-      - name: Create GitHub Release
+      - name: Build module zip
+        shell: bash
+        run: |
+          rm -f bt-stability-helper-*.zip
+          zip -r "${{ steps.vars.outputs.zip }}" . \
+            -x '.git/*' \
+            -x '.github/*' \
+            -x 'bt-stability-helper-*.zip'
+
+      - name: Create or update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ env.ZIP_NAME }}
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: Bluetooth Stability Helper ${{ steps.vars.outputs.version }}
+          files: ${{ steps.vars.outputs.zip }}
           generate_release_notes: true
-          draft: false
-          prerelease: false

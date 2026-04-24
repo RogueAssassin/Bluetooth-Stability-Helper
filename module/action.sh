@@ -46,6 +46,27 @@ write_status() {
       fi
     done
     echo "  total: $count"
+    echo
+    echo "Pokemod checker:"
+    POKEMOD_PACKAGE_CANDIDATES="dev.pokemod com.pokemod com.pokemod.app com.pokemod.app.public com.pokemod.espresso com.roswell108.pokemodko"
+    [ -f "$MODDIR/common/config.sh" ] && . "$MODDIR/common/config.sh"
+    [ -f "$USERCFG" ] && . "$USERCFG"
+    found_installed=0
+    found_running=0
+    for pkg in $POKEMOD_PACKAGE_CANDIDATES; do
+      if cmd package path "$pkg" >/dev/null 2>&1 || pm path "$pkg" >/dev/null 2>&1; then
+        found_installed=1
+        echo "  installed: $pkg"
+      fi
+      if pidof "$pkg" >/dev/null 2>&1 || ps -A 2>/dev/null | awk '{print $9}' | grep -qx "$pkg" || ps 2>/dev/null | awk '{print $9}' | grep -qx "$pkg"; then
+        found_running=1
+        echo "  running: $pkg"
+      fi
+    done
+    [ "$found_installed" = "0" ] && echo "  installed: not detected from configured candidates"
+    [ "$found_running" = "0" ] && echo "  running: not detected from configured candidates"
+    echo "  checker enabled: ${POKEMOD_CHECK_ENABLED:-0}"
+    echo "  warn only: ${POKEMOD_WARN_ONLY:-1}"
   } > "$STATUS_FILE"
   cp "$MODEFILE" "$EXPORT_DIR/user-mode.txt" 2>/dev/null
   [ -f "$USERCFG" ] && cp "$USERCFG" "$EXPORT_DIR/user-config.sh" 2>/dev/null

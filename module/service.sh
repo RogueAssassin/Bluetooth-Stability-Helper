@@ -154,6 +154,70 @@ health_bad_state() {
   return 0
 }
 
+package_running() {
+  pkg="$1"
+  [ -n "$pkg" ] || return 1
+  pidof "$pkg" >/dev/null 2>&1 && return 0
+  ps -A 2>/dev/null | awk '{print $9}' | grep -qx "$pkg" && return 0
+  ps 2>/dev/null | awk '{print $9}' | grep -qx "$pkg" && return 0
+  return 1
+}
+
+package_installed() {
+  pkg="$1"
+  [ -n "$pkg" ] || return 1
+  cmd package path "$pkg" >/dev/null 2>&1 && return 0
+  pm path "$pkg" >/dev/null 2>&1 && return 0
+  return 1
+}
+
+pokemod_running_package() {
+  for pkg in $POKEMOD_PACKAGE_CANDIDATES; do
+    if package_running "$pkg"; then
+      echo "$pkg"
+      return 0
+    fi
+  done
+  return 1
+}
+
+pokemod_installed_package() {
+  for pkg in $POKEMOD_PACKAGE_CANDIDATES; do
+    if package_installed "$pkg"; then
+      echo "$pkg"
+      return 0
+    fi
+  done
+  return 1
+}
+
+pokemon_go_running() {
+  package_running "$POKEMON_GO_PACKAGE"
+}
+
+pokemod_health_bad() {
+  [ "$POKEMOD_CHECK_ENABLED" = "1" ] || return 1
+
+  running_pkg="$(pokemod_running_package)"
+  if [ -n "$running_pkg" ]; then
+    log "Pokemod check: running package detected ($running_pkg)"
+    return 1
+  fi
+
+  installed_pkg="$(pokemod_installed_package)"
+  if [ -n "$installed_pkg" ]; then
+    if [ "$POKEMOD_REQUIRED_FOR_GO" = "1" ] && ! pokemon_go_running; then
+      log "Pokemod check: installed ($installed_pkg), not running, but Pokémon GO is not running"
+      return 1
+    fi
+    log "Pokemod check warning: installed ($installed_pkg) but no running Pokemod process detected"
+    return 0
+  fi
+
+  log "Pokemod check warning: no configured Pokemod package detected; update POKEMOD_PACKAGE_CANDIDATES if needed"
+  return 0
+}
+
 count_recent_restarts() {
   now=$(date +%s)
   cutoff=$((now - 3600))
@@ -238,6 +302,14 @@ main_loop() {
       if [ "$RESTART_BT_ON_BAD_STATE" = "1" ]; then
         if health_bad_state; then
           log "Health warning: bluetooth_manager summary did not clearly report ON"
+          bad=1
+        fi
+      fi
+
+      if pokemod_health_bad; then
+        if [ "$POKEMOD_WARN_ONLY" = "1" ]; then
+          log "Pokemod check is warn-only; Bluetooth recovery will not be triggered by this signal"
+        else
           bad=1
         fi
       fi
