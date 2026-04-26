@@ -1,25 +1,56 @@
 #!/system/bin/sh
-WATCHDOG_ENABLED=0
-WATCHDOG_INTERVAL=120
-RESTART_BT_ON_MISSING=0
-RESTART_BT_ON_BAD_STATE=0
+# Bluetooth Stability Helper PRO defaults. Override in /data/adb/modules/btstabilityhelper/user-config.sh
+
+# Mode: standard, monitor, safe, aggressive, pokemon, diagnostics
+MODE_DEFAULT="standard"
+WATCHDOG_ENABLED=1
+WATCHDOG_INTERVAL=60
+LOG_ROTATE_SIZE_KB=512
+MAX_RESTARTS_PER_HOUR=3
+FAILURE_THRESHOLD=2
+RECOVERY_COOLDOWN=420
+
+# Recovery ladder
+ENABLE_AUDIO_ROUTE_REPAIR=1
+ENABLE_BT_PROCESS_CHECK=1
+ENABLE_BT_MANAGER_CHECK=1
+ENABLE_ADAPTER_TOGGLE_RECOVERY=1
+ENABLE_BLUETOOTH_APP_FORCE_STOP=0
+ENABLE_VENDOR_BT_RESTART_HINTS=0
+
+# Stability tuning
 WHITELIST_BLUETOOTH=1
 WHITELIST_GMS=1
+WHITELIST_POKEMON_GO=1
+WHITELIST_POKEMOD=1
 WHITELIST_EXTRA_PACKAGES=""
+ENABLE_DEVICE_IDLE_TUNING=0
+DEVICE_IDLE_CONSTANTS="inactive_to=86400000,sensing_to=600000,locating_to=600000"
 ENABLE_WIFI_SCAN_THROTTLE_OFF=1
 ENABLE_LOCATION_BG_THROTTLE_OFF=1
 ENABLE_BLE_SCAN_ALWAYS=1
-ENABLE_DEVICE_IDLE_TUNING=0
-DEVICE_IDLE_CONSTANTS="inactive_to=86400000,sensing_to=600000,locating_to=600000"
-MAX_RESTARTS_PER_HOUR=2
-LOG_ROTATE_SIZE_KB=256
-FAILURE_THRESHOLD=3
-RECOVERY_COOLDOWN=600
-MODE_DEFAULT="safe"
+ENABLE_A2DP_OFFLOAD_DISABLE=0
+ENABLE_GABELDORSCHE_CHECK=1
 
-# Pokemod support checker
-POKEMOD_CHECK_ENABLED=0
+# Pokémon GO / Pokemod / vPGP3 support checker
+POKEMON_GO_PACKAGE="com.nianticlabs.pokemongo"
+POKEMOD_CHECK_ENABLED=1
 POKEMOD_REQUIRED_FOR_GO=1
 POKEMOD_WARN_ONLY=1
-POKEMOD_PACKAGE_CANDIDATES="dev.pokemod com.pokemod com.pokemod.app com.pokemod.app.public com.pokemod.espresso com.roswell108.pokemodko"
-POKEMON_GO_PACKAGE="com.nianticlabs.pokemongo"
+POKEMOD_PACKAGE_CANDIDATES="com.pokemod.app.public dev.pokemod com.pokemod com.pokemod.app com.pokemod.espresso com.roswell108.pokemodko"
+VPGP3_PACKAGE_CANDIDATES="com.pokemod.vpgp3 com.pokemod.vpgp com.vpgp3 app.vpgp3"
+
+# Location/Bluetooth setting checks. By default these warn only and do not change user-facing settings.
+CHECK_LOCATION_MODE=1
+CHECK_BLE_SCAN_SETTINGS=1
+CHECK_NEARBY_DEVICES_APP_OPS=1
+CHECK_BATTERY_RESTRICTIONS=1
+APPLY_LOCATION_SETTING_FIXES=0
+APPLY_APP_OPS_FIXES=1
+
+# Local file control
+CONFIG_DIR="/sdcard/Download/Bluetooth-Stability-Helper"
+IMPORT_DIR="$CONFIG_DIR/import"
+EXPORT_DIR="$CONFIG_DIR/export"
+LOCAL_MODE_FILE="$CONFIG_DIR/mode.txt"
+LOCAL_USER_CONFIG="$CONFIG_DIR/user-config.sh"

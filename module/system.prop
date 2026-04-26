@@ -1,0 +1,2 @@
+# Bluetooth Stability Helper PRO
+# Offload is disabled only when ENABLE_A2DP_OFFLOAD_DISABLE=1 via resetprop at runtime.

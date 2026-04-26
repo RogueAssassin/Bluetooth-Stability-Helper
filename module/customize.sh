@@ -1,38 +1,36 @@
-SKIPMOUNT=true
+#!/system/bin/sh
+SKIPMOUNT=false
 PROPFILE=false
 POSTFSDATA=true
 LATESTARTSERVICE=true
-
 print_modname() {
   ui_print "*******************************"
-  ui_print "  Bluetooth Stability Helper  "
-  ui_print "        by RogueAssassin      "
+  ui_print " Bluetooth Stability Helper PRO "
+  ui_print " v0.7.0                     "
   ui_print "*******************************"
+  ui_print "Magisk-side BT/location stabiliser."
+  ui_print "Does not modify Vector/LSPosed."
 }
-
 on_install() {
-  ui_print "- Installing module files"
-  unzip -o "$ZIPFILE" 'module.prop' -d "$MODPATH" >&2
-  unzip -o "$ZIPFILE" 'customize.sh' -d "$MODPATH" >&2
-  unzip -o "$ZIPFILE" 'action.sh' -d "$MODPATH" >&2
-  unzip -o "$ZIPFILE" 'service.sh' -d "$MODPATH" >&2
-  unzip -o "$ZIPFILE" 'post-fs-data.sh' -d "$MODPATH" >&2
-  unzip -o "$ZIPFILE" 'uninstall.sh' -d "$MODPATH" >&2
-  unzip -o "$ZIPFILE" 'README.md' -d "$MODPATH" >&2
-  unzip -o "$ZIPFILE" 'common/*' -d "$MODPATH" >&2
-
-  chmod 0755 "$MODPATH/action.sh"
-  chmod 0755 "$MODPATH/service.sh"
-  chmod 0755 "$MODPATH/post-fs-data.sh"
-  chmod 0755 "$MODPATH/uninstall.sh"
-  chmod 0755 "$MODPATH/common/config.sh"
-  find "$MODPATH/common/profiles" -type f -name '*.sh' -exec chmod 0755 {} \;
+  ui_print "Installing module files..."
+  unzip -o "$ZIPFILE" 'module/*' -d $MODPATH >&2
+  mv "$MODPATH/module"/* "$MODPATH"/
+  rm -rf "$MODPATH/module"
+  [ -f "$MODPATH/user-mode.txt" ] || echo standard > "$MODPATH/user-mode.txt"
+  [ -f "$MODPATH/user-config.sh" ] || cat > "$MODPATH/user-config.sh" <<'CFG'
+#!/system/bin/sh
+# User overrides for Bluetooth Stability Helper PRO.
+# Modes: safe, monitor, standard, pokemon, aggressive, diagnostics
+# Example:
+# MODE_DEFAULT="pokemon"
+# ENABLE_A2DP_OFFLOAD_DISABLE=1
+# POKEMOD_WARN_ONLY=1
+CFG
 }
-
 set_permissions() {
   set_perm_recursive "$MODPATH" 0 0 0755 0644
-  set_perm "$MODPATH/action.sh" 0 0 0755
   set_perm "$MODPATH/service.sh" 0 0 0755
+  set_perm "$MODPATH/action.sh" 0 0 0755
   set_perm "$MODPATH/post-fs-data.sh" 0 0 0755
-  set_perm "$MODPATH/uninstall.sh" 0 0 0755
+  set_perm_recursive "$MODPATH/scripts" 0 0 0755 0755
 }

@@ -1,4 +1,4 @@
-Bluetooth Stability Helper v0.6.0
+Bluetooth Stability Helper v0.7.0
 
 Author: RogueAssassin
 GitHub: https://github.com/RogueAssassin

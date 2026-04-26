@@ -1,1 +1,9 @@
-<svg width="960" height="320" viewBox="0 0 960 320" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="bg" x1="0" y1="0" x2="960" y2="320" gradientUnits="userSpaceOnUse"><stop stop-color="#101828"/><stop offset="1" stop-color="#175CD3"/></linearGradient><linearGradient id="bolt" x1="120" y1="50" x2="240" y2="260" gradientUnits="userSpaceOnUse"><stop stop-color="#7CD4FD"/><stop offset="1" stop-color="#D1E9FF"/></linearGradient></defs><rect width="960" height="320" rx="48" fill="url(#bg)"/><circle cx="160" cy="160" r="94" fill="#1570EF" opacity="0.25"/><path d="M155 60L225 130L180 160L225 190L155 260V184L115 224L94 203L137 160L94 117L115 96L155 136V60Z" fill="url(#bolt)"/><path d="M155 116V204L187 172L167 160L187 148L155 116Z" fill="#101828" opacity="0.75"/><text x="300" y="132" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="48" font-weight="800" fill="white">Bluetooth Stability Helper</text><text x="303" y="184" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="26" font-weight="500" fill="#D1E9FF">Magisk module • BLE stability • Pokemod-aware checks</text><text x="303" y="230" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="28" font-weight="700" fill="#B2DDFF">v0.6.0</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#00b4ff"/><stop offset="1" stop-color="#7b61ff"/></linearGradient></defs>
+  <rect width="512" height="512" rx="112" fill="#07111f"/>
+  <circle cx="256" cy="256" r="204" fill="url(#g)" opacity=".18"/>
+  <path d="M237 76v152l-61-61-32 32 76 76-76 76 32 32 61-61v114l121-121-77-60 77-60L237 76zm45 106 31 31-31 24v-55zm0 193v-62l31 24-31 38z" fill="#eaf7ff"/>
+  <path d="M94 188c-27 39-39 83-36 128m360-128c27 39 39 83 36 128" fill="none" stroke="#eaf7ff" stroke-width="24" stroke-linecap="round" opacity=".55"/>
+  <circle cx="256" cy="256" r="32" fill="#ff3d71"/>
+  <text x="256" y="476" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#eaf7ff">PRO</text>
+</svg>

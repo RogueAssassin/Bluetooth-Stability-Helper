@@ -1,18 +1,16 @@
 # Changelog
 
-## v0.6.0 - Pokemod support + GitHub updater
+## v0.7.0
 
-### Added
-- GitHub updater manifest support through `updateJson` in `module/module.prop`.
-- Release workflows for packaging and publishing Magisk install zips from tags.
-- Pokemod app/package checker with the current public package name: `com.pokemod.app.public`.
-- Status reporting for Pokemod installed/running checks.
-- Repository branding, logo, badges, and update documentation.
+- Promoted module to Bluetooth Stability Helper PRO.
+- Added config-file mode control via `/sdcard/Download/Bluetooth-Stability-Helper/mode.txt`.
+- Added Pokémon mode for Pokémon GO + Pokemod + vPGP3 coexistence.
+- Added checks for Bluetooth processes, Bluetooth manager state, location mode, BLE scan settings, app ops and battery/idle whitelisting.
+- Added safer recovery ladder: audio route repair first, adapter toggle second, optional Bluetooth app force-stop only in aggressive mode/config.
+- Added diagnostics exporter with Bluetooth, location, process and package state.
+- Preserved GitHub update JSON support.
+- Kept Vector/LSPosed untouched for compatibility.
 
-### Changed
-- Version bumped to `0.6.0` with `versionCode=60`.
-- GitHub release asset naming standardized as `bt-stability-helper-v0.6.0.zip`.
+## v0.6.0
 
-### Notes
-- Pokemod checking is conservative and configurable from `common/config.sh` or imported user config.
-- Default behaviour remains safe unless watchdog/recovery options are explicitly enabled.
+- Added GitHub updater files and Pokemod package detection for `com.pokemod.app.public`.

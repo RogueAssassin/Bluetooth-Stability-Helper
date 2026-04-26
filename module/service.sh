@@ -7,334 +7,61 @@ LAST_RECOVERY_FILE="$STATE_DIR/last_recovery.txt"
 FAIL_COUNT_FILE="$STATE_DIR/fail_count.txt"
 MODEFILE="$MODDIR/user-mode.txt"
 USERCFG="$MODDIR/user-config.sh"
-
 mkdir -p "$STATE_DIR"
-
 . "$MODDIR/common/config.sh"
 [ -f "$USERCFG" ] && . "$USERCFG"
-. "$MODDIR/common/profiles/generic.sh"
-. "$MODDIR/common/profiles/pixel.sh"
-. "$MODDIR/common/profiles/samsung.sh"
-. "$MODDIR/common/profiles/xiaomi.sh"
+. "$MODDIR/scripts/lib.sh"
 
-log() {
-  echo "$(date '+%F %T')  $1" >> "$LOG"
+rotate_log_if_needed() { [ -f "$LOG" ] || return; size_kb=$(du -k "$LOG" | awk '{print $1}'); [ "$size_kb" -gt "$LOG_ROTATE_SIZE_KB" ] && mv "$LOG" "$LOG.1" 2>/dev/null && touch "$LOG"; }
+wait_until_boot_complete() { until [ "$(getprop sys.boot_completed)" = "1" ]; do sleep 5; done; sleep 25; }
+ensure_mode_file() { [ -f "$MODEFILE" ] || echo "$MODE_DEFAULT" > "$MODEFILE"; [ -f "$LOCAL_MODE_FILE" ] && cp "$LOCAL_MODE_FILE" "$MODEFILE" 2>/dev/null; [ -f "$LOCAL_USER_CONFIG" ] && cp "$LOCAL_USER_CONFIG" "$USERCFG" 2>/dev/null; }
+current_mode() { cat "$MODEFILE" 2>/dev/null; }
+apply_mode_defaults() { MODE=$(current_mode); case "$MODE" in
+ safe) WATCHDOG_ENABLED=1; WATCHDOG_INTERVAL=120; ENABLE_ADAPTER_TOGGLE_RECOVERY=0; ENABLE_BLUETOOTH_APP_FORCE_STOP=0; APPLY_APP_OPS_FIXES=0; ENABLE_DEVICE_IDLE_TUNING=0 ;;
+ monitor) WATCHDOG_ENABLED=1; WATCHDOG_INTERVAL=90; ENABLE_ADAPTER_TOGGLE_RECOVERY=0; ENABLE_BLUETOOTH_APP_FORCE_STOP=0; APPLY_APP_OPS_FIXES=0 ;;
+ standard) WATCHDOG_ENABLED=1; WATCHDOG_INTERVAL=60; FAILURE_THRESHOLD=2; ENABLE_ADAPTER_TOGGLE_RECOVERY=1; ENABLE_BLUETOOTH_APP_FORCE_STOP=0 ;;
+ pokemon) WATCHDOG_ENABLED=1; WATCHDOG_INTERVAL=45; FAILURE_THRESHOLD=2; WHITELIST_POKEMON_GO=1; WHITELIST_POKEMOD=1; APPLY_APP_OPS_FIXES=1; ENABLE_BLE_SCAN_ALWAYS=1 ;;
+ aggressive) WATCHDOG_ENABLED=1; WATCHDOG_INTERVAL=35; FAILURE_THRESHOLD=1; MAX_RESTARTS_PER_HOUR=4; ENABLE_BLUETOOTH_APP_FORCE_STOP=1; ENABLE_DEVICE_IDLE_TUNING=1 ;;
+ diagnostics) WATCHDOG_ENABLED=1; WATCHDOG_INTERVAL=180; ENABLE_ADAPTER_TOGGLE_RECOVERY=0; ENABLE_BLUETOOTH_APP_FORCE_STOP=0 ;;
+ *) echo standard > "$MODEFILE"; MODE=standard ;;
+ esac; log "Mode applied: $MODE"; }
+apply_static_tuning() {
+ [ "$WHITELIST_BLUETOOTH" = 1 ] && whitelist_pkg com.android.bluetooth
+ [ "$WHITELIST_GMS" = 1 ] && whitelist_pkg com.google.android.gms
+ [ "$WHITELIST_POKEMON_GO" = 1 ] && whitelist_pkg "$POKEMON_GO_PACKAGE"
+ if [ "$WHITELIST_POKEMOD" = 1 ]; then for pkg in $POKEMOD_PACKAGE_CANDIDATES $VPGP3_PACKAGE_CANDIDATES; do package_installed "$pkg" && whitelist_pkg "$pkg"; done; fi
+ for pkg in $WHITELIST_EXTRA_PACKAGES; do whitelist_pkg "$pkg"; done
+ if [ "$APPLY_APP_OPS_FIXES" = 1 ]; then
+   for pkg in com.android.bluetooth com.google.android.gms "$POKEMON_GO_PACKAGE" $POKEMOD_PACKAGE_CANDIDATES $VPGP3_PACKAGE_CANDIDATES; do
+     appops_allow_safe "$pkg" WAKE_LOCK; appops_allow_safe "$pkg" RUN_ANY_IN_BACKGROUND; appops_allow_safe "$pkg" START_FOREGROUND; appops_allow_safe "$pkg" BLUETOOTH_CONNECT; appops_allow_safe "$pkg" BLUETOOTH_SCAN; appops_allow_safe "$pkg" FINE_LOCATION; appops_allow_safe "$pkg" ACCESS_FINE_LOCATION
+   done
+ fi
+ [ "$ENABLE_BLE_SCAN_ALWAYS" = 1 ] && settings put global ble_scan_always_enabled 1 >/dev/null 2>&1
+ [ "$ENABLE_WIFI_SCAN_THROTTLE_OFF" = 1 ] && settings put global wifi_scan_throttle_enabled 0 >/dev/null 2>&1
+ [ "$ENABLE_LOCATION_BG_THROTTLE_OFF" = 1 ] && settings put global location_background_throttle_interval_ms 0 >/dev/null 2>&1
+ [ "$ENABLE_DEVICE_IDLE_TUNING" = 1 ] && settings put global device_idle_constants "$DEVICE_IDLE_CONSTANTS" >/dev/null 2>&1
+ [ "$ENABLE_A2DP_OFFLOAD_DISABLE" = 1 ] && { resetprop -n persist.bluetooth.a2dp_offload.disabled true 2>/dev/null; resetprop -n persist.vendor.bluetooth.a2dp_offload.disabled true 2>/dev/null; }
 }
-
-rotate_log_if_needed() {
-  if [ -f "$LOG" ]; then
-    size_kb=$(du -k "$LOG" | awk '{print $1}')
-    if [ "$size_kb" -gt "$LOG_ROTATE_SIZE_KB" ]; then
-      mv "$LOG" "$LOG.1" 2>/dev/null
-      touch "$LOG"
-      log "Rotated log"
-    fi
-  fi
-}
-
-wait_until_boot_complete() {
-  until [ "$(getprop sys.boot_completed)" = "1" ]; do
-    sleep 5
-  done
-  sleep 15
-}
-
-ensure_mode_file() {
-  [ -f "$MODEFILE" ] || echo "$MODE_DEFAULT" > "$MODEFILE"
-}
-
-current_mode() {
-  cat "$MODEFILE" 2>/dev/null
-}
-
-apply_mode_defaults() {
-  MODE=$(current_mode)
-  case "$MODE" in
-    safe)
-      WATCHDOG_ENABLED=0
-      RESTART_BT_ON_MISSING=0
-      RESTART_BT_ON_BAD_STATE=0
-      WATCHDOG_INTERVAL=120
-      ENABLE_DEVICE_IDLE_TUNING=0
-      ;;
-    monitor)
-      WATCHDOG_ENABLED=1
-      RESTART_BT_ON_MISSING=0
-      RESTART_BT_ON_BAD_STATE=0
-      WATCHDOG_INTERVAL=120
-      ENABLE_DEVICE_IDLE_TUNING=0
-      ;;
-    recover)
-      WATCHDOG_ENABLED=1
-      RESTART_BT_ON_MISSING=1
-      RESTART_BT_ON_BAD_STATE=1
-      WATCHDOG_INTERVAL=90
-      ENABLE_DEVICE_IDLE_TUNING=0
-      ;;
-    pixel_aggressive)
-      WATCHDOG_ENABLED=1
-      RESTART_BT_ON_MISSING=1
-      RESTART_BT_ON_BAD_STATE=1
-      WATCHDOG_INTERVAL=60
-      ENABLE_DEVICE_IDLE_TUNING=1
-      MAX_RESTARTS_PER_HOUR=3
-      FAILURE_THRESHOLD=2
-      ;;
-    *)
-      log "Unknown mode '$MODE', forcing safe"
-      echo safe > "$MODEFILE"
-      WATCHDOG_ENABLED=0
-      RESTART_BT_ON_MISSING=0
-      RESTART_BT_ON_BAD_STATE=0
-      WATCHDOG_INTERVAL=120
-      ENABLE_DEVICE_IDLE_TUNING=0
-      ;;
-  esac
-  log "Mode defaults applied: $(current_mode)"
-}
-
-detect_profile() {
-  BRAND=$(getprop ro.product.brand | tr '[:upper:]' '[:lower:]')
-  MANUFACTURER=$(getprop ro.product.manufacturer | tr '[:upper:]' '[:lower:]')
-  DEVICE=$(getprop ro.product.device)
-  case "$BRAND:$MANUFACTURER" in
-    google:*|*:google) PROFILE="pixel" ;;
-    samsung:*|*:samsung) PROFILE="samsung" ;;
-    xiaomi:*|*:xiaomi|redmi:*|*:redmi|poco:*|*:poco) PROFILE="xiaomi" ;;
-    *) PROFILE="generic" ;;
-  esac
-  log "Detected brand=$BRAND manufacturer=$MANUFACTURER device=$DEVICE profile=$PROFILE"
-}
-
-apply_profile() {
-  case "$PROFILE" in
-    pixel) apply_profile_pixel ;;
-    samsung) apply_profile_samsung ;;
-    xiaomi) apply_profile_xiaomi ;;
-    *) apply_profile_generic ;;
-  esac
-}
-
-whitelist_pkg() {
-  pkg="$1"
-  [ -n "$pkg" ] || return 0
-  cmd deviceidle whitelist +"$pkg" >/dev/null 2>&1
-  log "Whitelisted from device idle: $pkg"
-}
-
-apply_whitelists() {
-  [ "$WHITELIST_BLUETOOTH" = "1" ] && whitelist_pkg "com.android.bluetooth"
-  [ "$WHITELIST_GMS" = "1" ] && whitelist_pkg "com.google.android.gms"
-  for pkg in $WHITELIST_EXTRA_PACKAGES; do
-    whitelist_pkg "$pkg"
-  done
-}
-
-bt_enabled_setting() {
-  settings get global bluetooth_on 2>/dev/null
-}
-
-bt_process_count() {
-  count=0
-  for name in com.android.bluetooth android.hardware.bluetooth@1.0-service android.hardware.bluetooth-service vendor.qti.bluetooth@1.0-service vendor.bluetooth_service; do
-    pidof "$name" >/dev/null 2>&1 && count=$((count+1))
-  done
-  echo "$count"
-}
-
-bt_manager_summary() {
-  dumpsys bluetooth_manager 2>/dev/null | grep -E "enabled:|state:|name:|address:" | head -n 8
-}
-
-health_bad_state() {
-  # Heuristic only. Return 0 when state looks bad.
-  summary="$(dumpsys bluetooth_manager 2>/dev/null | tr '[:upper:]' '[:lower:]')"
-  echo "$summary" | grep -q "state:.*on" && return 1
-  echo "$summary" | grep -q "enabled: true" && return 1
-  return 0
-}
-
-package_running() {
-  pkg="$1"
-  [ -n "$pkg" ] || return 1
-  pidof "$pkg" >/dev/null 2>&1 && return 0
-  ps -A 2>/dev/null | awk '{print $9}' | grep -qx "$pkg" && return 0
-  ps 2>/dev/null | awk '{print $9}' | grep -qx "$pkg" && return 0
-  return 1
-}
-
-package_installed() {
-  pkg="$1"
-  [ -n "$pkg" ] || return 1
-  cmd package path "$pkg" >/dev/null 2>&1 && return 0
-  pm path "$pkg" >/dev/null 2>&1 && return 0
-  return 1
-}
-
-pokemod_running_package() {
-  for pkg in $POKEMOD_PACKAGE_CANDIDATES; do
-    if package_running "$pkg"; then
-      echo "$pkg"
-      return 0
-    fi
-  done
-  return 1
-}
-
-pokemod_installed_package() {
-  for pkg in $POKEMOD_PACKAGE_CANDIDATES; do
-    if package_installed "$pkg"; then
-      echo "$pkg"
-      return 0
-    fi
-  done
-  return 1
-}
-
-pokemon_go_running() {
-  package_running "$POKEMON_GO_PACKAGE"
-}
-
-pokemod_health_bad() {
-  [ "$POKEMOD_CHECK_ENABLED" = "1" ] || return 1
-
-  running_pkg="$(pokemod_running_package)"
-  if [ -n "$running_pkg" ]; then
-    log "Pokemod check: running package detected ($running_pkg)"
-    return 1
-  fi
-
-  installed_pkg="$(pokemod_installed_package)"
-  if [ -n "$installed_pkg" ]; then
-    if [ "$POKEMOD_REQUIRED_FOR_GO" = "1" ] && ! pokemon_go_running; then
-      log "Pokemod check: installed ($installed_pkg), not running, but Pokémon GO is not running"
-      return 1
-    fi
-    log "Pokemod check warning: installed ($installed_pkg) but no running Pokemod process detected"
-    return 0
-  fi
-
-  log "Pokemod check warning: no configured Pokemod package detected; update POKEMOD_PACKAGE_CANDIDATES if needed"
-  return 0
-}
-
-count_recent_restarts() {
-  now=$(date +%s)
-  cutoff=$((now - 3600))
-  [ -f "$RESTARTS_FILE" ] || { echo 0; return; }
-  awk -v cutoff="$cutoff" '$1 >= cutoff {count++} END {print count+0}' "$RESTARTS_FILE"
-}
-
-record_restart() {
-  date +%s >> "$RESTARTS_FILE"
-  date +%s > "$LAST_RECOVERY_FILE"
-}
-
-recovery_cooldown_ok() {
-  [ -f "$LAST_RECOVERY_FILE" ] || return 0
-  last=$(cat "$LAST_RECOVERY_FILE" 2>/dev/null)
-  [ -n "$last" ] || return 0
-  now=$(date +%s)
-  delta=$((now - last))
-  [ "$delta" -ge "$RECOVERY_COOLDOWN" ]
-}
-
-cleanup_restart_history() {
-  now=$(date +%s)
-  cutoff=$((now - 7200))
-  if [ -f "$RESTARTS_FILE" ]; then
-    awk -v cutoff="$cutoff" '$1 >= cutoff' "$RESTARTS_FILE" > "$RESTARTS_FILE.tmp" && mv "$RESTARTS_FILE.tmp" "$RESTARTS_FILE"
-  fi
-}
-
-get_fail_count() {
-  [ -f "$FAIL_COUNT_FILE" ] && cat "$FAIL_COUNT_FILE" || echo 0
-}
-
-set_fail_count() {
-  echo "$1" > "$FAIL_COUNT_FILE"
-}
-
-increment_fail_count() {
-  count=$(get_fail_count)
-  count=$((count + 1))
-  set_fail_count "$count"
-  echo "$count"
-}
-
-reset_fail_count() {
-  set_fail_count 0
-}
-
-restart_bt_stack() {
-  recent=$(count_recent_restarts)
-  if [ "$recent" -ge "$MAX_RESTARTS_PER_HOUR" ]; then
-    log "Restart skipped: max restarts per hour reached ($recent/$MAX_RESTARTS_PER_HOUR)"
-    return
-  fi
-  if ! recovery_cooldown_ok; then
-    log "Restart skipped: cooldown active"
-    return
-  fi
-  log "Attempting Bluetooth stack restart"
-  svc bluetooth disable >/dev/null 2>&1
-  sleep 3
-  svc bluetooth enable >/dev/null 2>&1
-  sleep 5
-  record_restart
-  log "Bluetooth stack restart complete"
-}
-
-main_loop() {
-  while true; do
-    rotate_log_if_needed
-    cleanup_restart_history
-
-    if [ "$WATCHDOG_ENABLED" = "1" ]; then
-      bad=0
-      proc_count=$(bt_process_count)
-
-      if [ "$RESTART_BT_ON_MISSING" = "1" ] && [ "$(bt_enabled_setting)" = "1" ] && [ "$proc_count" -eq 0 ]; then
-        log "Health warning: bluetooth enabled but no known Bluetooth process detected"
-        bad=1
-      fi
-
-      if [ "$RESTART_BT_ON_BAD_STATE" = "1" ]; then
-        if health_bad_state; then
-          log "Health warning: bluetooth_manager summary did not clearly report ON"
-          bad=1
-        fi
-      fi
-
-      if pokemod_health_bad; then
-        if [ "$POKEMOD_WARN_ONLY" = "1" ]; then
-          log "Pokemod check is warn-only; Bluetooth recovery will not be triggered by this signal"
-        else
-          bad=1
-        fi
-      fi
-
-      if [ "$bad" -eq 1 ]; then
-        fails=$(increment_fail_count)
-        log "Consecutive failure count: $fails/$FAILURE_THRESHOLD"
-        if [ "$fails" -ge "$FAILURE_THRESHOLD" ]; then
-          restart_bt_stack
-          reset_fail_count
-        fi
-      else
-        reset_fail_count
-      fi
-    fi
-
-    sleep "$WATCHDOG_INTERVAL"
-  done
-}
-
+bt_enabled_setting() { settings get global bluetooth_on 2>/dev/null; }
+bt_process_count() { count=0; for name in com.android.bluetooth android.hardware.bluetooth@1.0-service android.hardware.bluetooth-service android.hardware.bluetooth.audio-service vendor.qti.bluetooth@1.0-service vendor.bluetooth_service; do pidof "$name" >/dev/null 2>&1 && count=$((count+1)); done; echo "$count"; }
+health_bad_state() { summary="$(dumpsys bluetooth_manager 2>/dev/null | tr '[:upper:]' '[:lower:]')"; echo "$summary" | grep -q "state:.*on" && return 1; echo "$summary" | grep -q "enabled: true" && return 1; return 0; }
+location_health_check() { [ "$CHECK_LOCATION_MODE" = 1 ] || return 1; mode=$(settings get secure location_mode 2>/dev/null); [ "$mode" = 3 ] || [ "$mode" = 1 ] || { log "Location warning: location_mode=$mode; Pokémon GO/Pokemod may have unstable BLE/location sessions"; return 0; }; return 1; }
+pokemon_stack_health_bad() { [ "$POKEMOD_CHECK_ENABLED" = 1 ] || return 1; go=0; package_running "$POKEMON_GO_PACKAGE" && go=1; prun=$(first_running_from_list "$POKEMOD_PACKAGE_CANDIDATES"); vrun=$(first_running_from_list "$VPGP3_PACKAGE_CANDIDATES"); pinst=$(first_installed_from_list "$POKEMOD_PACKAGE_CANDIDATES"); vinst=$(first_installed_from_list "$VPGP3_PACKAGE_CANDIDATES"); [ -n "$prun" ] && log "Pokemod running: $prun"; [ -n "$vrun" ] && log "vPGP3 candidate running: $vrun"; if [ "$go" = 1 ] && [ "$POKEMOD_REQUIRED_FOR_GO" = 1 ] && [ -n "$pinst$vinst" ] && [ -z "$prun$vrun" ]; then log "Pokémon GO running but installed Pokemod/vPGP3 package is not detected running"; return 0; fi; return 1; }
+count_recent_restarts() { now=$(date +%s); cutoff=$((now - 3600)); [ -f "$RESTARTS_FILE" ] || { echo 0; return; }; awk -v cutoff="$cutoff" '$1 >= cutoff {count++} END {print count+0}' "$RESTARTS_FILE"; }
+record_restart() { date +%s >> "$RESTARTS_FILE"; date +%s > "$LAST_RECOVERY_FILE"; }
+recovery_cooldown_ok() { [ -f "$LAST_RECOVERY_FILE" ] || return 0; last=$(cat "$LAST_RECOVERY_FILE" 2>/dev/null); [ -z "$last" ] && return 0; delta=$(($(date +%s)-last)); [ "$delta" -ge "$RECOVERY_COOLDOWN" ]; }
+get_fail_count() { [ -f "$FAIL_COUNT_FILE" ] && cat "$FAIL_COUNT_FILE" || echo 0; }
+set_fail_count() { echo "$1" > "$FAIL_COUNT_FILE"; }
+increment_fail_count() { c=$(get_fail_count); c=$((c+1)); set_fail_count "$c"; echo "$c"; }
+reset_fail_count() { set_fail_count 0; }
+cleanup_restart_history() { now=$(date +%s); cutoff=$((now-7200)); [ -f "$RESTARTS_FILE" ] && awk -v cutoff="$cutoff" '$1 >= cutoff' "$RESTARTS_FILE" > "$RESTARTS_FILE.tmp" && mv "$RESTARTS_FILE.tmp" "$RESTARTS_FILE"; }
+repair_audio_route() { [ "$ENABLE_AUDIO_ROUTE_REPAIR" = 1 ] || return; cmd media_session volume --show >/dev/null 2>&1; dumpsys audio >/dev/null 2>&1; log "Audio route repair hint executed"; }
+restart_bt_stack() { recent=$(count_recent_restarts); [ "$recent" -ge "$MAX_RESTARTS_PER_HOUR" ] && { log "Recovery skipped: max restarts reached $recent/$MAX_RESTARTS_PER_HOUR"; return; }; recovery_cooldown_ok || { log "Recovery skipped: cooldown active"; return; }; fails=$(get_fail_count); repair_audio_route; if [ "$ENABLE_BLUETOOTH_APP_FORCE_STOP" = 1 ] && [ "$fails" -ge 2 ]; then am force-stop com.android.bluetooth >/dev/null 2>&1; sleep 2; log "Bluetooth app force-stop attempted"; fi; if [ "$ENABLE_ADAPTER_TOGGLE_RECOVERY" = 1 ]; then log "Bluetooth adapter toggle recovery"; svc bluetooth disable >/dev/null 2>&1; sleep 4; svc bluetooth enable >/dev/null 2>&1; sleep 7; record_restart; fi; }
+main_loop() { while true; do rotate_log_if_needed; cleanup_restart_history; ensure_mode_file; . "$MODDIR/common/config.sh"; [ -f "$USERCFG" ] && . "$USERCFG"; . "$MODDIR/scripts/lib.sh"; apply_mode_defaults; bad=0; if [ "$WATCHDOG_ENABLED" = 1 ]; then proc_count=$(bt_process_count); [ "$ENABLE_BT_PROCESS_CHECK" = 1 ] && [ "$(bt_enabled_setting)" = 1 ] && [ "$proc_count" -eq 0 ] && { log "Bluetooth enabled but no known Bluetooth process found"; bad=1; }; [ "$ENABLE_BT_MANAGER_CHECK" = 1 ] && health_bad_state && { log "bluetooth_manager did not report ON/true"; bad=1; }; location_health_check; if pokemon_stack_health_bad; then [ "$POKEMOD_WARN_ONLY" = 1 ] && log "Pokemod/vPGP3 signal warn-only; not triggering BT recovery" || bad=1; fi; if [ "$bad" = 1 ]; then fails=$(increment_fail_count); log "Failure count: $fails/$FAILURE_THRESHOLD"; [ "$fails" -ge "$FAILURE_THRESHOLD" ] && restart_bt_stack && reset_fail_count; else reset_fail_count; fi; fi; [ "$(current_mode)" = diagnostics ] && MODDIR="$MODDIR" sh "$MODDIR/scripts/diagnostics.sh" >/dev/null 2>&1; sleep "$WATCHDOG_INTERVAL"; done; }
 wait_until_boot_complete
-log "Service start"
+log "Bluetooth Stability Helper PRO 0.7.0 start"
 ensure_mode_file
 apply_mode_defaults
-detect_profile
-apply_profile
-apply_whitelists
+apply_static_tuning
+MODDIR="$MODDIR" sh "$MODDIR/scripts/diagnostics.sh" >/dev/null 2>&1
 main_loop
