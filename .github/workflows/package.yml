@@ -1,21 +1,37 @@
-name: Package Check
+name: Package Module
+
 on:
+  workflow_dispatch:
   push:
-    branches: [ main ]
-  pull_request:
+    branches:
+      - main
+    paths:
+      - 'module/**'
+      - '.github/workflows/package.yml'
+
 jobs:
   package:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Validate module metadata
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read module version
+        id: version
+        shell: bash
         run: |
-          test -f module/module.prop
-          grep -q '^version=0.7.0' module/module.prop
-          grep -q '^versionCode=70' module/module.prop
-          grep -q '^updateJson=' module/module.prop
-      - name: Build test zip
+          VERSION=$(grep '^version=' module/module.prop | cut -d= -f2)
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "zip_name=bt-stability-helper-v${VERSION}.zip" >> "$GITHUB_OUTPUT"
+
+      - name: Create install zip
+        shell: bash
         run: |
           cd module
-          zip -r9 ../bt-stability-helper-test.zip . -x '*.git*'
-          unzip -t ../bt-stability-helper-test.zip
+          zip -r "../${{ steps.version.outputs.zip_name }}" .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bt-stability-helper-v${{ steps.version.outputs.version }}
+          path: ${{ steps.version.outputs.zip_name }}

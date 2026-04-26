@@ -1,14 +1,62 @@
-# Bluetooth Stability Helper PRO v0.7.0
+# Bluetooth Stability Helper PRO
 
-Magisk-side Bluetooth, BLE, location, Pokémon GO, Pokemod and vPGP3 stability helper.
+![Logo](assets/logo.svg)
 
-## Why Magisk, not Vector/LSPosed?
+Improve BLE/Bluetooth stability on rooted Android devices with a conservative Magisk module designed for Pokémon GO, Pokemod, vPGP3, location/BLE checks, diagnostics, and safer recovery modes.
 
-This module fixes system-level Bluetooth/location behaviour. Vector/LSPosed hooks app/runtime behaviour. Keeping this as a Magisk module avoids touching ART hooks, Zygisk injection, or LSPosed/Vector internals.
+Created by **RogueAssassin**  
+GitHub: https://github.com/RogueAssassin
 
-Vector remains safe to run beside this module because this module does not force-stop Vector, change Zygisk, patch apps, or inject code.
+[![Magisk](https://img.shields.io/badge/Magisk-Compatible-brightgreen)](#install)
+[![Android](https://img.shields.io/badge/Android-13%2B-blue)](#install)
+[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+[![Latest Release](https://img.shields.io/github/v/release/RogueAssassin/Bluetooth-Stability-Helper?display_name=tag)](https://github.com/RogueAssassin/Bluetooth-Stability-Helper/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/RogueAssassin/Bluetooth-Stability-Helper/total)](https://github.com/RogueAssassin/Bluetooth-Stability-Helper/releases)
+
+## Quick links
+
+- **Latest release page:** https://github.com/RogueAssassin/Bluetooth-Stability-Helper/releases/latest
+- **All releases:** https://github.com/RogueAssassin/Bluetooth-Stability-Helper/releases
+- **Issues:** https://github.com/RogueAssassin/Bluetooth-Stability-Helper/issues
+- **Update guide:** [STS_UPDATE_GUIDE.md](STS_UPDATE_GUIDE.md)
+
+## Highlights
+
+- PRO Bluetooth watchdog and guarded recovery ladder
+- Local mode control through `/sdcard/Download/Bluetooth-Stability-Helper/mode.txt`
+- Pokémon GO, Pokemod, and vPGP3-aware checks
+- Pokemod package support including `com.pokemod.app.public`
+- Location/BLE/Bluetooth diagnostics
+- Safe Vector/LSPosed coexistence: no Zygisk/ART hooks are changed
+- GitHub updater manifest for Magisk-compatible managers
+- GitHub release workflow that auto-attaches the install zip
 
 ## Modes
+
+- **safe** — light checks only
+- **monitor** — diagnostics only, no recovery toggles
+- **standard** — recommended default
+- **pokemon** — Pokémon GO/Pokemod/vPGP3 friendly defaults
+- **aggressive** — stronger guarded recovery for persistent dropouts
+- **diagnostics** — slow loop with repeated status exports
+
+## Install
+
+### Option 1 — GitHub Releases
+
+1. Open the latest release page.
+2. Download `bt-stability-helper-v0.7.0.zip` or the newest version shown there.
+3. Install it in Magisk.
+4. Reboot.
+
+### Option 2 — Build locally from source
+
+```bash
+cd module
+zip -r ../bt-stability-helper-v0.7.0.zip .
+```
+
+## Local mode file
 
 Create or edit:
 
@@ -16,50 +64,21 @@ Create or edit:
 /sdcard/Download/Bluetooth-Stability-Helper/mode.txt
 ```
 
-Supported modes:
-
-- `safe` - light checks only
-- `monitor` - diagnostics, no recovery toggles
-- `standard` - recommended default
-- `pokemon` - Pokémon GO/Pokemod/vPGP3 friendly defaults
-- `aggressive` - stronger recovery for persistent dropouts
-- `diagnostics` - slow loop with repeated status exports
-
-You can also use Magisk Action to cycle modes.
-
-## User config
-
-Edit:
+Recommended first value:
 
 ```text
-/sdcard/Download/Bluetooth-Stability-Helper/user-config.sh
+pokemon
 ```
 
-or import via:
+## GitHub release setup
 
-```text
-/sdcard/Download/Bluetooth-Stability-Helper/import/user-config.sh
+Push a tag like:
+
+```bash
+git tag v0.7.0
+git push origin v0.7.0
 ```
 
-Useful overrides:
+The GitHub Actions workflow will package the module, create a GitHub Release, and attach the install zip.
 
-```sh
-MODE_DEFAULT="pokemon"
-ENABLE_A2DP_OFFLOAD_DISABLE=1
-POKEMOD_WARN_ONLY=1
-ENABLE_BLUETOOTH_APP_FORCE_STOP=0
-```
-
-## Pokemod/vPGP3
-
-Included Pokemod package candidate:
-
-```text
-com.pokemod.app.public
-```
-
-vPGP3 package names vary, so the module checks common candidates and exports what it finds in diagnostics.
-
-## GitHub updates
-
-Magisk update support is provided by `updateJson` in `module/module.prop` and root `update.json`.
+See [STS_UPDATE_GUIDE.md](STS_UPDATE_GUIDE.md) for the full future update process.
