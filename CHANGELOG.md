@@ -1,16 +1,19 @@
 # Changelog
 
+## v0.8.0
+
+- Moved runtime config, mode, logs, exports, and state to `/sdcard/Bluetooth-Stability-Helper/` so `/sdcard/Download` stays clean.
+- Added Android 12-16 target range handling: SDK 31-36 checks and warnings.
+- Added Pixel/Google profile with Android 16 guard tuning and A2DP offload disable option.
+- Added Samsung and MIUI/Xiaomi/Redmi/Poco profile detection.
+- Added `pixel` mode between `pokemon` and `aggressive`.
+- Expanded diagnostics for Bluetooth/location settings, Bluetooth properties, appops, Pokémon GO, Pokemod, and vPGP3.
+- Added safer restricted-standby/appops checks for Pokémon GO, Pokemod, vPGP3, Bluetooth, and Play Services.
+- Kept GitHub Releases/Magisk update flow and existing logo path intact.
+
 ## v0.7.0
 
-- Promoted module to Bluetooth Stability Helper PRO.
-- Added config-file mode control via `/sdcard/Download/Bluetooth-Stability-Helper/mode.txt`.
-- Added Pokémon mode for Pokémon GO + Pokemod + vPGP3 coexistence.
-- Added checks for Bluetooth processes, Bluetooth manager state, location mode, BLE scan settings, app ops and battery/idle whitelisting.
-- Added safer recovery ladder: audio route repair first, adapter toggle second, optional Bluetooth app force-stop only in aggressive mode/config.
-- Added diagnostics exporter with Bluetooth, location, process and package state.
-- Preserved GitHub update JSON support.
-- Kept Vector/LSPosed untouched for compatibility.
-
-## v0.6.0
-
-- Added GitHub updater files and Pokemod package detection for `com.pokemod.app.public`.
+- PRO watchdog and guarded recovery ladder.
+- Pokémon GO, Pokemod, and vPGP3-aware checks.
+- Local mode/config support.
+- GitHub Actions release flow.
