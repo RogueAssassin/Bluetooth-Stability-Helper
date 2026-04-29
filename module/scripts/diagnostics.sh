@@ -5,11 +5,11 @@ MODDIR=${MODDIR:-${0%/*}/..}
 [ -f "$MODDIR/user-config.sh" ] && . "$MODDIR/user-config.sh"
 . "$MODDIR/scripts/lib.sh"
 OUT="$EXPORT_DIR/status.txt"
-mkdir -p "$EXPORT_DIR" "$LOG_DIR" "$CONFIG_DIR"
+mkdir -p "$EXPORT_DIR" "$LOG_DIR" "$CONFIG_DIR" "$STATE_DIR"
 {
  echo "Bluetooth Stability Helper PRO diagnostics"
  echo "Timestamp: $(date '+%F %T')"
- echo "Version: 0.8.0"
+ echo "Version: 0.8.1"
  echo "Mode file: $(cat "$LOCAL_MODE_FILE" 2>/dev/null || cat "$MODDIR/user-mode.txt" 2>/dev/null)"
  echo "Config dir: $CONFIG_DIR"
  echo "Brand: $(getprop ro.product.brand)"
@@ -30,6 +30,11 @@ mkdir -p "$EXPORT_DIR" "$LOG_DIR" "$CONFIG_DIR"
  echo "  location_mode=$(settings get secure location_mode 2>/dev/null)"
  echo "  location_background_throttle_interval_ms=$(settings get global location_background_throttle_interval_ms 2>/dev/null)"
  echo
+ echo "Pokemon Plus session:"
+ echo "  key=$(cat "$STATE_DIR/pokemonplus_session_key" 2>/dev/null)"
+ echo "  start_epoch=$(cat "$STATE_DIR/pokemonplus_session_start" 2>/dev/null)"
+ echo "  last_stale_epoch=$(cat "$STATE_DIR/pokemonplus_last_stale" 2>/dev/null)"
+ echo
  echo "Bluetooth properties:"
  getprop | grep -iE 'bluetooth|bt\.|a2dp|gabeldorsche' | head -n 80
  echo
@@ -41,18 +46,18 @@ mkdir -p "$EXPORT_DIR" "$LOG_DIR" "$CONFIG_DIR"
    if pidof "$name" >/dev/null 2>&1; then echo "  alive: $name"; else echo "  missing: $name"; fi
  done
  echo
- echo "Pokémon / Pokemod / vPGP3 packages and appops:"
+ echo "Pokemon / Pokemod / vPGP3 packages and appops:"
  seen=""
  for pkg in $POKEMON_GO_PACKAGE $POKEMOD_PACKAGE_CANDIDATES $VPGP3_PACKAGE_CANDIDATES; do
    echo " $seen " | grep -q " $pkg " && continue; seen="$seen $pkg"
    inst=no; run=no; package_installed "$pkg" && inst=yes; package_running "$pkg" && run=yes
    [ "$inst" = yes ] || [ "$run" = yes ] || continue
    echo "  $pkg installed=$inst running=$run"
-   cmd appops get "$pkg" 2>/dev/null | grep -E "WAKE_LOCK|RUN_ANY|RUN_IN|BLUETOOTH|LOCATION|FOREGROUND" | sed 's/^/    /'
+   cmd appops get "$pkg" 2>/dev/null | grep -E "WAKE_LOCK|RUN_ANY|RUN_IN|BLUETOOTH|LOCATION|FOREGROUND|NOTIFICATION|ALARM" | sed 's/^/    /'
  done
  echo
- echo "Recent Bluetooth/location logs:"
- logcat -d -t 180 2>/dev/null | grep -iE "bluetooth|bt_stack|a2dp|gatt|ble|adapter|hci|location|gnss|fused" | tail -n 90
+ echo "Recent Bluetooth/location/Pokemon Plus logs:"
+ logcat -d -t 260 2>/dev/null | grep -iE "bluetooth|bt_stack|a2dp|gatt|ble|adapter|hci|location|gnss|fused|go plus|pokemod|vpgp" | tail -n 110
 } > "$OUT"
 cp "$OUT" "$LOCAL_STATUS_FILE" 2>/dev/null
 tail -n 160 "$LOG_DIR/bt-stability.log" > "$EXPORT_DIR/log-tail.txt" 2>/dev/null

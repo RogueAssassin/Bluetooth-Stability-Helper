@@ -30,12 +30,12 @@ Bluetooth-Stability-Helper/
 7. Commit to `main`, for example:
 
 ```text
-Release v0.8.0
+Release v0.8.1
 ```
 
 8. Click **Push origin**.
 9. Create a tag in GitHub Desktop:
-   - Tag name: `v0.8.0`
+   - Tag name: `v0.8.1`
    - Target: the release commit
 10. Push the tag.
 11. Open GitHub in your browser and check **Actions**.
@@ -47,7 +47,7 @@ Release v0.8.0
 ## Version rules
 
 - Increase `versionCode` every release.
-- Use tags like `v0.8.0`, `v0.8.1`, `v0.9.0`.
+- Use tags like `v0.8.1`, `v0.8.1`, `v0.9.0`.
 - The GitHub tag must match `module.prop` version.
 - Keep the logo version-neutral so it does not need changes every release.
 
