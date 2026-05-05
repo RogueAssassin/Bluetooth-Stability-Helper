@@ -5,10 +5,11 @@ POSTFSDATA=true
 LATESTARTSERVICE=true
 print_modname() {
   ui_print "*******************************"
-  ui_print " Bluetooth Stability Helper PRO "
-  ui_print " v0.8.1                     "
+  ui_print " Bluetooth Stability Helper    "
+  ui_print " v0.9.0 Adaptive Engine        "
   ui_print "*******************************"
-  ui_print "Magisk-side BT/location stabiliser."
+  ui_print "Pixel-first BT/BLE stabiliser."
+  ui_print "Pokémon GO + Pokemod VPGP³+ aware."
   ui_print "Does not modify Vector/LSPosed."
 }
 on_install() {
@@ -16,15 +17,14 @@ on_install() {
   unzip -o "$ZIPFILE" 'module/*' -d $MODPATH >&2
   mv "$MODPATH/module"/* "$MODPATH"/
   rm -rf "$MODPATH/module"
-  [ -f "$MODPATH/user-mode.txt" ] || echo standard > "$MODPATH/user-mode.txt"
   [ -f "$MODPATH/user-config.sh" ] || cat > "$MODPATH/user-config.sh" <<'CFG'
 #!/system/bin/sh
-# User overrides for Bluetooth Stability Helper PRO.
-# Modes: safe, monitor, standard, pokemon, pokemonplus, pixel, aggressive, diagnostics
+# User overrides for Bluetooth Stability Helper.
+# One adaptive engine is used by default; no mode switching required.
 # Example:
-# MODE_DEFAULT="pokemonplus"
+# WATCHDOG_INTERVAL=40
+# STALE_SESSION_MINUTES=42
 # ENABLE_A2DP_OFFLOAD_DISABLE=1
-# POKEMOD_WARN_ONLY=1
 CFG
 }
 set_permissions() {

@@ -1,7 +1,7 @@
 id=btstabilityhelper
 name=Bluetooth Stability Helper PRO
-version=0.8.1
-versionCode=81
+version=0.9.0
+versionCode=90
 author=RogueAssassin
-description=PRO Bluetooth/location stability helper for Android 12-16, Pixel tuning, Pokémon GO + Pokemod/vPGP3 checks, sdcard logs, config-file modes, diagnostics, safe recovery, and GitHub auto-update support
+description=Adaptive Bluetooth Stability Engine for Android 12-16 with Pixel-first BLE recovery, Pokémon GO + Pokemod VPGP³+ support, diagnostics, sdcard logging, and GitHub auto-update support
 updateJson=https://raw.githubusercontent.com/RogueAssassin/Bluetooth-Stability-Helper/main/update.json

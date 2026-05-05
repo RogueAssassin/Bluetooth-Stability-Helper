@@ -1,42 +1,74 @@
 #!/system/bin/sh
-# Bluetooth Stability Helper PRO defaults. Override in /sdcard/Bluetooth-Stability-Helper/user-config.sh
+# Bluetooth Stability Helper v0.9.0 defaults.
+# Override in /sdcard/Bluetooth-Stability-Helper/user-config.sh
+# Design goal: one adaptive Bluetooth stability engine, Pixel-first, Pokémon GO/Pokemod aware.
 
-# Mode: safe, monitor, standard, pokemon, pokemonplus, pixel, aggressive, diagnostics
-MODE_DEFAULT="pokemonplus"
+ENGINE_PROFILE="adaptive"
 WATCHDOG_ENABLED=1
-WATCHDOG_INTERVAL=45
-LOG_ROTATE_SIZE_KB=768
+WATCHDOG_INTERVAL=40
+LOG_ROTATE_SIZE_KB=1024
 MAX_RESTARTS_PER_HOUR=4
 FAILURE_THRESHOLD=2
 RECOVERY_COOLDOWN=300
 
-# Android 12-16 support range. Values are SDK versions: 31=A12, 32=A12L, 33=A13, 34=A14, 35=A15, 36=A16.
+# Android support range. 31=A12, 32=A12L, 33=A13, 34=A14, 35=A15, 36=A16.
 SUPPORTED_SDK_MIN=31
 SUPPORTED_SDK_MAX=36
 ANDROID16_SDK=36
 ENABLE_ANDROID_VERSION_WARNINGS=1
 ENABLE_SDK_AWARE_TUNING=1
 
-# Recovery ladder
+# Recovery ladder. Defaults are conservative: diagnose + safe Bluetooth refresh, not app killing.
 ENABLE_AUDIO_ROUTE_REPAIR=1
 ENABLE_BT_PROCESS_CHECK=1
 ENABLE_BT_MANAGER_CHECK=1
 ENABLE_BLUETOOTH_LOG_CRASH_CHECK=1
 ENABLE_ADAPTER_TOGGLE_RECOVERY=1
 ENABLE_BLUETOOTH_APP_FORCE_STOP=0
-ENABLE_VENDOR_BT_RESTART_HINTS=0
+ENABLE_VENDOR_BT_RESTART_HINTS=1
 ENABLE_SAFE_RADIO_RESET=0
+ENABLE_BLE_KEEPALIVE=1
+BLE_KEEPALIVE_INTERVAL=120
+ENABLE_BT_HAL_OBSERVE=1
+ENABLE_BT_SOCKET_OBSERVE=1
+ENABLE_GATT_STALL_OBSERVE=1
+ENABLE_LE_AUDIO_WARNING=1
+ENABLE_A2DP_OFFLOAD_DISABLE=1
+
+# Pixel-first tuning. Other brands remain supported, but Pixel is the primary target.
+ENABLE_PIXEL_TUNING=1
+ENABLE_PIXEL_ANDROID16_GUARDS=1
+ENABLE_PIXEL_TENSOR_POWER_GUARD=1
+ENABLE_PIXEL_BLE_STALL_RECOVERY=1
+ENABLE_PIXEL_DIAG_EXPORT_ON_STALL=1
+ENABLE_SAMSUNG_TUNING=1
+ENABLE_MIUI_TUNING=1
+ENABLE_GENERIC_VENDOR_TUNING=1
+
+# Pokémon GO / Pokemod / VPGP³+ support checker.
+POKEMON_GO_PACKAGE="com.nianticlabs.pokemongo"
+POKEMON_GO_PACKAGE_CANDIDATES="com.nianticlabs.pokemongo com.nianticlabs.pokemongo.ares"
+POKEMOD_CHECK_ENABLED=1
+POKEMOD_REQUIRED_FOR_GO=0
+POKEMOD_WARN_ONLY=1
+POKEMOD_PACKAGE_CANDIDATES="com.pokemod.app.public dev.pokemod com.pokemod com.pokemod.app com.pokemod.espresso com.roswell108.pokemodko"
+VPGP3_DISPLAY_NAME="VPGP³+"
+VPGP3_ASCII_NAME="VPGP3+"
+VPGP3_PACKAGE_CANDIDATES="com.pokemod.vpgp3 com.pokemod.vpgp com.vpgp3 app.vpgp3 com.pokemod.plus com.pokemod.vpgpplus"
+BLUETOOTH_GAME_PACKAGE_CANDIDATES="com.nianticlabs.pokemongo com.nianticlabs.pikmin com.nianticlabs.monsterhunter com.nianticlabs.peridot com.pokemod.app.public dev.pokemod com.pokemod com.pokemod.app com.pokemod.espresso"
+
+# VPGP³+ stale-session watchdog. Designed for the symptom: catches/spins for a while, then session stalls.
 ENABLE_STALE_SESSION_WATCHDOG=1
-STALE_SESSION_MINUTES=52
-STALE_SESSION_ACTION="diagnose"
-STALE_SESSION_BT_REFRESH=0
+STALE_SESSION_MINUTES=42
+STALE_SESSION_ACTION="bt_refresh"   # log | diagnose | bt_refresh
+STALE_SESSION_BT_REFRESH=1
 STALE_SESSION_APP_REFRESH=0
+POKEMONPLUS_AUTO_EXPORT_ON_STALL=1
 ENABLE_GO_PLUS_STALL_PATTERNS=1
-ENABLE_GATT_CACHE_OBSERVE=1
 ENABLE_ACTIVITY_KEEPALIVE_HINTS=1
 ENABLE_CONN_REPAIR_HINTS=1
 
-# Stability tuning
+# Location/Bluetooth setting checks. Most are safe appops/device-idle tuning.
 WHITELIST_BLUETOOTH=1
 WHITELIST_GMS=1
 WHITELIST_POKEMON_GO=1
@@ -47,22 +79,6 @@ DEVICE_IDLE_CONSTANTS="inactive_to=86400000,sensing_to=600000,locating_to=600000
 ENABLE_WIFI_SCAN_THROTTLE_OFF=1
 ENABLE_LOCATION_BG_THROTTLE_OFF=1
 ENABLE_BLE_SCAN_ALWAYS=1
-ENABLE_A2DP_OFFLOAD_DISABLE=0
-ENABLE_GABELDORSCHE_CHECK=1
-ENABLE_PIXEL_TUNING=1
-ENABLE_PIXEL_ANDROID16_GUARDS=1
-ENABLE_SAMSUNG_TUNING=1
-ENABLE_MIUI_TUNING=1
-
-# Pokémon GO / Pokemod / vPGP3 support checker
-POKEMON_GO_PACKAGE="com.nianticlabs.pokemongo"
-POKEMOD_CHECK_ENABLED=1
-POKEMOD_REQUIRED_FOR_GO=1
-POKEMOD_WARN_ONLY=1
-POKEMOD_PACKAGE_CANDIDATES="com.pokemod.app.public dev.pokemod com.pokemod com.pokemod.app com.pokemod.espresso com.roswell108.pokemodko"
-VPGP3_PACKAGE_CANDIDATES="com.pokemod.vpgp3 com.pokemod.vpgp com.vpgp3 app.vpgp3"
-
-# Location/Bluetooth setting checks. By default these warn only and do not change user-facing settings.
 CHECK_LOCATION_MODE=1
 CHECK_BLE_SCAN_SETTINGS=1
 CHECK_NEARBY_DEVICES_APP_OPS=1
@@ -72,11 +88,11 @@ APPLY_LOCATION_SETTING_FIXES=0
 APPLY_APP_OPS_FIXES=1
 APPLY_RESTRICTED_STANDBY_FIXES=1
 
-# Local file control. Kept out of Download so the Downloads folder stays clean.
+# Local files live directly under /sdcard, not Downloads.
 CONFIG_DIR="/sdcard/Bluetooth-Stability-Helper"
 IMPORT_DIR="$CONFIG_DIR/import"
 EXPORT_DIR="$CONFIG_DIR/export"
 LOG_DIR="$CONFIG_DIR/logs"
-LOCAL_MODE_FILE="$CONFIG_DIR/mode.txt"
+STATE_DIR="$CONFIG_DIR/state"
 LOCAL_USER_CONFIG="$CONFIG_DIR/user-config.sh"
 LOCAL_STATUS_FILE="$CONFIG_DIR/status.txt"

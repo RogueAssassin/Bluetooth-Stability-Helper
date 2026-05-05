@@ -1,123 +1,69 @@
-# Bluetooth Stability Helper PRO
+# Bluetooth Stability Helper
 
-![Logo](assets/logo.svg)
+![Bluetooth Stability Helper logo](assets/logo.svg)
 
-Improve BLE/Bluetooth stability on rooted Android devices with a conservative Magisk module designed for Android 12-16, Pixel/Google devices, Pokémon GO, Pokemod, vPGP3/Virtual GO Plus stale-session diagnostics, location/BLE checks, diagnostics, and safer recovery modes.
+**v0.9.0 Adaptive Bluetooth Stability Engine**
 
-Created by **RogueAssassin**  
-GitHub: https://github.com/RogueAssassin
+A Magisk module focused on reducing Bluetooth and BLE dropouts on Android 12-16, with Pixel-first tuning and extra awareness for Pokémon GO, Pokemod from Pokemod.dev, and **VPGP³+** style Virtual Pokémon GO Plus sessions.
 
-[![Magisk](https://img.shields.io/badge/Magisk-Compatible-brightgreen)](#install)
-[![Android](https://img.shields.io/badge/Android-12--16-blue)](#install)
-[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
-[![Latest Release](https://img.shields.io/github/v/release/RogueAssassin/Bluetooth-Stability-Helper?display_name=tag)](https://github.com/RogueAssassin/Bluetooth-Stability-Helper/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/RogueAssassin/Bluetooth-Stability-Helper/total)](https://github.com/RogueAssassin/Bluetooth-Stability-Helper/releases)
+## What changed in v0.9.0
 
-## Quick links
+- Replaced the old multi-mode flow with one standard adaptive engine.
+- Pixel-first Bluetooth/BLE stability checks for Android 12-16, especially Android 16.
+- Stronger Bluetooth process, `bluetooth_manager`, HAL, GATT, and BLE stall observation.
+- Better VPGP³+ stale-session detection for the pattern where spinning/catching works for a while and then stops.
+- Pokémon GO, Pokemod, and Bluetooth-aware game/app detection.
+- Safe AppOps and device-idle allowances for Bluetooth, Google Play services, Pokémon GO, Pokemod, and known Bluetooth game candidates.
+- Logs/config/status kept under `/sdcard/Bluetooth-Stability-Helper/`, not Downloads.
+- GitHub/Magisk update JSON retained.
+- Vector/LSPosed safe: this module does not install hooks or modify Vector.
 
-- **Latest release page:** https://github.com/RogueAssassin/Bluetooth-Stability-Helper/releases/latest
-- **All releases:** https://github.com/RogueAssassin/Bluetooth-Stability-Helper/releases
-- **Issues:** https://github.com/RogueAssassin/Bluetooth-Stability-Helper/issues
-- **Update guide:** [STS_UPDATE_GUIDE.md](STS_UPDATE_GUIDE.md)
-
-## Highlights
-
-- Android 12-16 support range with SDK-aware checks
-- Pixel/Google profile with Android 16 guard tuning
-- Samsung and MIUI/Xiaomi/Redmi/Poco profile detection
-- PRO Bluetooth watchdog and guarded recovery ladder
-- Local mode control through `/sdcard/Bluetooth-Stability-Helper/mode.txt`
-- Logs, state, exports, and config saved under `/sdcard/Bluetooth-Stability-Helper/`
-- Pokémon GO, Pokemod, vPGP3, and Virtual GO Plus stale-session diagnostics
-- Pokemod package support including `com.pokemod.app.public`
-- Location/BLE/Bluetooth diagnostics
-- Safe Vector/LSPosed coexistence: no Zygisk/ART hooks are changed
-- GitHub updater manifest for Magisk-compatible managers
-- GitHub release workflow that auto-attaches the install zip
-
-## Modes
-
-- **safe** — light checks only
-- **monitor** — diagnostics only, no recovery toggles
-- **standard** — balanced default
-- **pokemon** — Pokémon GO/Pokemod/vPGP3 friendly defaults
-- **pokemonplus** — stronger Virtual GO Plus stale-session diagnostics, keepalive tuning, and auto-export
-- **pixel** — Pixel/Google focused Bluetooth stability profile
-- **aggressive** — stronger guarded recovery for persistent dropouts
-- **diagnostics** — slow loop with repeated status exports
-
-## Install
-
-### Option 1 — GitHub Releases
-
-1. Open the latest release page.
-2. Download `bt-stability-helper-v0.8.1.zip` or the newest version shown there.
-3. Install it in Magisk.
-4. Reboot.
-
-### Option 2 — Build locally from source
-
-```bash
-cd module
-zip -r ../bt-stability-helper-v0.8.1.zip .
-```
-
-## Local mode file
-
-Create or edit:
-
-```text
-/sdcard/Bluetooth-Stability-Helper/mode.txt
-```
-
-Recommended first value:
-
-```text
-pokemonplus
-```
-
-If that feels too active, step down to `pokemon`. For Pixel devices on Android 16, try `pixel`.
-
-## Logs and diagnostics
-
-Runtime files are saved to:
+## Runtime files
 
 ```text
 /sdcard/Bluetooth-Stability-Helper/
+├── user-config.sh
+├── status.txt
+├── logs/
+├── state/
+├── export/
+└── import/
 ```
 
-Important files:
+## User config
+
+The module now uses one adaptive profile by default. Edit this file only when you want to override behaviour:
 
 ```text
-/sdcard/Bluetooth-Stability-Helper/mode.txt
 /sdcard/Bluetooth-Stability-Helper/user-config.sh
-/sdcard/Bluetooth-Stability-Helper/status.txt
-/sdcard/Bluetooth-Stability-Helper/export/status.txt
-/sdcard/Bluetooth-Stability-Helper/logs/bt-stability.log
 ```
 
-## Virtual GO Plus stale-session notes
-
-This module cannot press in-game buttons or directly repair a Pokemod/Virtual GO Plus logic stall. It can keep Bluetooth, location, Google Play services, Pokémon GO, and Pokemod from being power-throttled, watch for long-running sessions, export diagnostics when a likely stale session is detected, and optionally trigger guarded recovery if explicitly enabled in `user-config.sh`.
-
-Suggested override after testing:
+Common safe overrides:
 
 ```sh
-STALE_SESSION_MINUTES=45
-STALE_SESSION_ACTION="diagnose"
-POKEMONPLUS_WARN_ONLY=1
+WATCHDOG_INTERVAL=40
+STALE_SESSION_MINUTES=42
+ENABLE_A2DP_OFFLOAD_DISABLE=1
+MAX_RESTARTS_PER_HOUR=4
 ```
 
-## GitHub Desktop release setup
+## Pokémon GO / Pokemod / VPGP³+ focus
 
-This repo is designed to be updated through GitHub Desktop plus GitHub Releases. You do not need Git Bash for the normal flow.
+The module checks for:
 
-1. Open this repo in GitHub Desktop.
-2. Make your file changes.
-3. Commit to `main` with a message like `Release v0.8.1`.
-4. Click **Push origin**.
-5. In GitHub Desktop, create a tag named `v0.8.1` on the release commit and push the tag.
-6. GitHub Actions will build `bt-stability-helper-v0.8.1.zip` and attach it to the release.
-7. Confirm `update.json` points to the same release ZIP.
+- `com.nianticlabs.pokemongo`
+- `com.pokemod.app.public`
+- other Pokemod/VPGP³+ candidate packages
+- other likely Bluetooth-aware Niantic/game packages
 
-See [STS_UPDATE_GUIDE.md](STS_UPDATE_GUIDE.md) for the full future update process.
+It does not automate gameplay. It focuses on Android Bluetooth, BLE, location, idle, and diagnostics stability.
+
+## GitHub updater
+
+`module.prop` points to:
+
+```text
+https://raw.githubusercontent.com/RogueAssassin/Bluetooth-Stability-Helper/main/update.json
+```
+
+Each future update should increase both `version` and `versionCode`, publish the Magisk ZIP as a GitHub Release asset, and update `update.json`.
