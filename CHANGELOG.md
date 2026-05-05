@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.9.1
+- Adds Interaction Freeze Guard for the exact symptom where Pokémon GO reaches a stop/Pokémon and the VPGP³+ interaction freezes while Bluetooth still appears connected.
+- Tightens Pixel-first watchdog interval and recovery cooldown.
+- Adds GMS/location keepalive polling while Pokémon GO/Pokemod/VPGP³+ style Bluetooth sessions are active.
+- Improves Android 12-16 app idle, background, wakelock, Bluetooth scan/connect, and location appops handling.
+- Keeps GitHub updater, repo layout, logo, and /sdcard/Bluetooth-Stability-Helper runtime path.
+
 ## v0.9.0
 
 - Introduced the Adaptive Bluetooth Stability Engine.

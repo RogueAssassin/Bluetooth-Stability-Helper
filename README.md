@@ -2,11 +2,11 @@
 
 ![Bluetooth Stability Helper logo](assets/logo.svg)
 
-**v0.9.0 Adaptive Bluetooth Stability Engine**
+**v0.9.1 Adaptive Bluetooth Stability Engine**
 
 A Magisk module focused on reducing Bluetooth and BLE dropouts on Android 12-16, with Pixel-first tuning and extra awareness for Pokémon GO, Pokemod from Pokemod.dev, and **VPGP³+** style Virtual Pokémon GO Plus sessions.
 
-## What changed in v0.9.0
+## What changed in v0.9.1
 
 - Replaced the old multi-mode flow with one standard adaptive engine.
 - Pixel-first Bluetooth/BLE stability checks for Android 12-16, especially Android 16.

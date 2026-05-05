@@ -12,6 +12,9 @@ SESSION_KEY_FILE="$STATE_DIR/vpgp3_session_key"
 SESSION_START_FILE="$STATE_DIR/vpgp3_session_start"
 LAST_STALE_FILE="$STATE_DIR/vpgp3_last_stale"
 LAST_KEEPALIVE_FILE="$STATE_DIR/last_ble_keepalive"
+LAST_GMS_LOCATION_KEEPALIVE_FILE="$STATE_DIR/last_gms_location_keepalive"
+INTERACTION_FREEZE_FILE="$STATE_DIR/interaction_freeze_count"
+LAST_INTERACTION_RECOVERY_FILE="$STATE_DIR/last_interaction_recovery"
 mkdir -p "$STATE_DIR" "$CONFIG_DIR" "$CONFIG_DIR/logs" "$EXPORT_DIR" "$CONFIG_DIR/import"
 . "$MODDIR/common/config.sh"
 [ -f "$USERCFG" ] && . "$USERCFG"
@@ -47,6 +50,8 @@ apply_appops_for_pkg() {
   appops_allow_safe "$pkg" COARSE_LOCATION
   appops_allow_safe "$pkg" POST_NOTIFICATION
   appops_allow_safe "$pkg" SCHEDULE_EXACT_ALARM
+  appops_allow_safe "$pkg" AUTO_REVOKE_PERMISSIONS_IF_UNUSED ignore
+  appops_allow_safe "$pkg" ACTIVATE_PLATFORM_VPN allow
 }
 
 apply_static_tuning() {
@@ -56,6 +61,16 @@ apply_static_tuning() {
   if [ "$WHITELIST_POKEMON_GO" = 1 ]; then for pkg in $POKEMON_GO_PACKAGE_CANDIDATES; do package_installed "$pkg" && whitelist_pkg "$pkg"; done; fi
   if [ "$WHITELIST_POKEMOD" = 1 ]; then for pkg in $POKEMOD_PACKAGE_CANDIDATES $VPGP3_PACKAGE_CANDIDATES; do package_installed "$pkg" && whitelist_pkg "$pkg"; done; fi
   for pkg in $WHITELIST_EXTRA_PACKAGES; do whitelist_pkg "$pkg"; done
+  if [ "$APPLY_RESTRICTED_STANDBY_FIXES" = 1 ]; then
+    for pkg in com.android.bluetooth com.google.android.gms $POKEMON_GO_PACKAGE_CANDIDATES $POKEMOD_PACKAGE_CANDIDATES $VPGP3_PACKAGE_CANDIDATES; do
+      package_installed "$pkg" || continue
+      cmd appops set "$pkg" RUN_ANY_IN_BACKGROUND allow >/dev/null 2>&1
+      cmd appops set "$pkg" RUN_IN_BACKGROUND allow >/dev/null 2>&1
+      cmd appops set "$pkg" START_FOREGROUND allow >/dev/null 2>&1
+      cmd appops set "$pkg" WAKE_LOCK allow >/dev/null 2>&1
+      am set-inactive "$pkg" false >/dev/null 2>&1
+    done
+  fi
   if [ "$APPLY_APP_OPS_FIXES" = 1 ]; then
     for pkg in com.android.bluetooth com.google.android.gms $POKEMON_GO_PACKAGE_CANDIDATES $POKEMOD_PACKAGE_CANDIDATES $VPGP3_PACKAGE_CANDIDATES $BLUETOOTH_GAME_PACKAGE_CANDIDATES; do apply_appops_for_pkg "$pkg"; done
   fi
@@ -90,6 +105,35 @@ ble_keepalive() {
   echo "$now" > "$LAST_KEEPALIVE_FILE"
   log "BLE keepalive poll executed"
 }
+
+
+gms_location_keepalive() {
+  [ "$ENABLE_GMS_LOCATION_KEEPALIVE" = 1 ] || return
+  active_bluetooth_game >/dev/null 2>&1 || return
+  now=$(date +%s); last=$(cat "$LAST_GMS_LOCATION_KEEPALIVE_FILE" 2>/dev/null)
+  [ -n "$last" ] && [ $((now-last)) -lt "$GMS_LOCATION_KEEPALIVE_INTERVAL" ] && return
+  dumpsys location >/dev/null 2>&1
+  dumpsys activity service com.google.android.gms/.chimera.GmsBoundBrokerService >/dev/null 2>&1
+  echo "$now" > "$LAST_GMS_LOCATION_KEEPALIVE_FILE"
+  log "GMS/location keepalive poll executed for active Bluetooth game"
+}
+
+interaction_freeze_patterns() {
+  [ "$ENABLE_INTERACTION_FREEZE_GUARD" = 1 ] || return 1
+  active_bluetooth_game >/dev/null 2>&1 || return 1
+  # The freeze normally appears as GATT busy/timeout, binder death, scan pause,
+  # or Pokémon GO/Google Play services location stalls while the accessory remains connected.
+  logcat -d -t "$INTERACTION_FREEZE_WINDOW_SECONDS" 2>/dev/null | grep -iE 'gatt.*(busy|133|257|timeout|disconnect|stuck|dead)|bluetoothgatt.*(busy|timeout|status=133)|bt_stack.*(timeout|hci|acl|l2cap|gatt)|bluetooth.*(binder died|dead object|adapter service|profile service|gattservice)|scan.*(failed|stopped|too frequent|throttle)|niantic|pokemod|vpgp|go plus|plus\+|fused.*(stale|timeout)|location.*(stale|throttle|no last location)' >/dev/null 2>&1 || return 1
+  c=$(cat "$INTERACTION_FREEZE_FILE" 2>/dev/null); [ -z "$c" ] && c=0; c=$((c+1)); echo "$c" > "$INTERACTION_FREEZE_FILE"
+  log "Interaction freeze guard matched recent BLE/location/app stall pattern count=$c"
+  [ "$POKEMONPLUS_AUTO_EXPORT_ON_STALL" = 1 ] && MODDIR="$MODDIR" sh "$MODDIR/scripts/diagnostics.sh" >/dev/null 2>&1
+  [ "$c" -ge "$INTERACTION_FREEZE_RECOVERY_AFTER_MATCHES" ] || return 1
+  now=$(date +%s); last=$(cat "$LAST_INTERACTION_RECOVERY_FILE" 2>/dev/null); [ -n "$last" ] && [ $((now-last)) -lt "$RECOVERY_COOLDOWN" ] && return 1
+  echo "$now" > "$LAST_INTERACTION_RECOVERY_FILE"
+  return 0
+}
+
+reset_interaction_freeze_count() { echo 0 > "$INTERACTION_FREEZE_FILE"; }
 
 scan_stall_patterns() {
   [ "$ENABLE_GO_PLUS_STALL_PATTERNS" = 1 ] || return 1
@@ -159,7 +203,7 @@ write_status() {
   sdk=$(sdk_int); model=$(getprop ro.product.model 2>/dev/null); brand=$(getprop ro.product.brand 2>/dev/null)
   go=$(active_pokemon_go); pm=$(active_pokemod); game=$(active_bluetooth_game)
   cat > "$LOCAL_STATUS_FILE" <<EOF
-Bluetooth Stability Helper v0.9.0
+Bluetooth Stability Helper v0.9.1
 Profile: adaptive
 Device: $brand $model SDK=$sdk
 Bluetooth enabled setting: $(bt_enabled_setting)
@@ -183,10 +227,12 @@ main_loop() {
       [ "$ENABLE_BT_MANAGER_CHECK" = 1 ] && health_bad_state && { log "bluetooth_manager did not report ON/true"; bad=1; }
       location_health_check
       ble_keepalive
+      gms_location_keepalive
+      interaction_freeze_patterns && bad=1
       scan_stall_patterns && bad=1
       track_vpgp3_session && bad=1
       if pokemon_stack_health_bad; then [ "$POKEMOD_WARN_ONLY" = 1 ] && log "Pokemod/$VPGP3_DISPLAY_NAME signal warn-only; not triggering BT recovery" || bad=1; fi
-      if [ "$bad" = 1 ]; then fails=$(increment_fail_count); log "Failure count: $fails/$FAILURE_THRESHOLD"; [ "$fails" -ge "$FAILURE_THRESHOLD" ] && restart_bt_stack && reset_fail_count; else reset_fail_count; fi
+      if [ "$bad" = 1 ]; then fails=$(increment_fail_count); log "Failure count: $fails/$FAILURE_THRESHOLD"; [ "$fails" -ge "$FAILURE_THRESHOLD" ] && restart_bt_stack && reset_fail_count && reset_interaction_freeze_count; else reset_fail_count; reset_interaction_freeze_count; fi
     fi
     write_status
     sleep "$WATCHDOG_INTERVAL"
@@ -195,7 +241,7 @@ main_loop() {
 
 wait_until_boot_complete
 ensure_files
-log "Bluetooth Stability Helper 0.9.0 adaptive engine start"
+log "Bluetooth Stability Helper 0.9.1 adaptive engine start"
 apply_adaptive_defaults
 apply_static_tuning
 MODDIR="$MODDIR" sh "$MODDIR/scripts/diagnostics.sh" >/dev/null 2>&1
