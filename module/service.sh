@@ -13,6 +13,7 @@ SESSION_START_FILE="$STATE_DIR/vpgp3_session_start"
 LAST_STALE_FILE="$STATE_DIR/vpgp3_last_stale"
 LAST_KEEPALIVE_FILE="$STATE_DIR/last_ble_keepalive"
 LAST_GMS_LOCATION_KEEPALIVE_FILE="$STATE_DIR/last_gms_location_keepalive"
+LAST_COMPANION_KEEPALIVE_FILE="$STATE_DIR/last_companion_keepalive"
 INTERACTION_FREEZE_FILE="$STATE_DIR/interaction_freeze_count"
 LAST_INTERACTION_RECOVERY_FILE="$STATE_DIR/last_interaction_recovery"
 mkdir -p "$STATE_DIR" "$CONFIG_DIR" "$CONFIG_DIR/logs" "$EXPORT_DIR" "$CONFIG_DIR/import"
@@ -51,7 +52,11 @@ apply_appops_for_pkg() {
   appops_allow_safe "$pkg" POST_NOTIFICATION
   appops_allow_safe "$pkg" SCHEDULE_EXACT_ALARM
   appops_allow_safe "$pkg" AUTO_REVOKE_PERMISSIONS_IF_UNUSED ignore
-  appops_allow_safe "$pkg" ACTIVATE_PLATFORM_VPN allow
+  if [ "$ENABLE_ANDROID16_JOB_STANDBY_GUARD" = 1 ]; then
+    am set-standby-bucket "$pkg" active >/dev/null 2>&1 && log "Standby bucket active: $pkg"
+    cmd jobscheduler monitor-battery off >/dev/null 2>&1
+  fi
+  # Keep appops conservative; do not touch VPN or LSPosed/Vector style hooks.
 }
 
 apply_static_tuning() {
@@ -114,8 +119,56 @@ gms_location_keepalive() {
   [ -n "$last" ] && [ $((now-last)) -lt "$GMS_LOCATION_KEEPALIVE_INTERVAL" ] && return
   dumpsys location >/dev/null 2>&1
   dumpsys activity service com.google.android.gms/.chimera.GmsBoundBrokerService >/dev/null 2>&1
+  dumpsys activity provider com.google.android.gms >/dev/null 2>&1
   echo "$now" > "$LAST_GMS_LOCATION_KEEPALIVE_FILE"
   log "GMS/location keepalive poll executed for active Bluetooth game"
+}
+
+companion_device_keepalive() {
+  [ "$ENABLE_COMPANION_DEVICE_KEEPALIVE" = 1 ] || return
+  active_bluetooth_game >/dev/null 2>&1 || return
+  now=$(date +%s); last=$(cat "$LAST_COMPANION_KEEPALIVE_FILE" 2>/dev/null)
+  [ -n "$last" ] && [ $((now-last)) -lt "$COMPANION_DEVICE_KEEPALIVE_INTERVAL" ] && return
+  dumpsys companiondevice >/dev/null 2>&1
+  dumpsys bluetooth_manager >/dev/null 2>&1
+  echo "$now" > "$LAST_COMPANION_KEEPALIVE_FILE"
+  log "CompanionDevice/Bluetooth keepalive poll executed for Android 16 presence/bond tracking"
+}
+
+pixel_connectivity_snapshot() {
+  [ "$ENABLE_PIXEL_CONNECTIVITY_SNAPSHOT_ON_STALL" = 1 ] || return
+  is_pixel_device || return
+  ts=$(date '+%Y%m%d-%H%M%S')
+  out="$EXPORT_DIR/pixel-connectivity-$ts.txt"
+  {
+    echo "Bluetooth Stability Helper Pixel connectivity snapshot"
+    echo "Time: $(date '+%F %T')"
+    echo "Build: $(getprop ro.build.id) / $(getprop ro.build.fingerprint)"
+    echo "SDK: $(getprop ro.build.version.sdk)"
+    echo
+    echo "--- bluetooth_manager ---"; dumpsys bluetooth_manager 2>/dev/null
+    echo
+    echo "--- bluetooth_manager proto size check ---"; dumpsys bluetooth_manager --proto 2>/dev/null | wc -c
+    echo
+    echo "--- companiondevice ---"; dumpsys companiondevice 2>/dev/null
+    echo
+    echo "--- location ---"; dumpsys location 2>/dev/null
+    echo
+    echo "--- thermalservice ---"; dumpsys thermalservice 2>/dev/null
+    echo
+    echo "--- recent bt/log patterns ---"; logcat -d -t 360 2>/dev/null | grep -iE 'bluetooth|bt_stack|gatt|hci|l2cap|companion|bond|encryption|niantic|pokemod|vpgp|location|fused' | tail -260
+  } > "$out" 2>/dev/null
+  log "Pixel connectivity snapshot exported: $out"
+}
+
+android16_connectivity_change_patterns() {
+  [ "$ENABLE_ANDROID16_BOND_LOSS_OBSERVE" = 1 ] || return 1
+  [ "$(sdk_int)" -ge "$ANDROID16_SDK" ] || return 1
+  active_bluetooth_game >/dev/null 2>&1 || return 1
+  logcat -d -t 360 2>/dev/null | grep -iE 'bond.*(loss|lost|none|removed)|encryption.*(change|failed|lost)|companion.*(presence|unbound|disconnected|timeout)|cdm.*(presence|unbound)|bluetooth.*(bond|encryption)' >/dev/null 2>&1 || return 1
+  log "Android 16 connectivity observer matched bond/encryption/companion-device change pattern"
+  pixel_connectivity_snapshot
+  return 0
 }
 
 interaction_freeze_patterns() {
@@ -127,6 +180,7 @@ interaction_freeze_patterns() {
   c=$(cat "$INTERACTION_FREEZE_FILE" 2>/dev/null); [ -z "$c" ] && c=0; c=$((c+1)); echo "$c" > "$INTERACTION_FREEZE_FILE"
   log "Interaction freeze guard matched recent BLE/location/app stall pattern count=$c"
   [ "$POKEMONPLUS_AUTO_EXPORT_ON_STALL" = 1 ] && MODDIR="$MODDIR" sh "$MODDIR/scripts/diagnostics.sh" >/dev/null 2>&1
+  pixel_connectivity_snapshot
   [ "$c" -ge "$INTERACTION_FREEZE_RECOVERY_AFTER_MATCHES" ] || return 1
   now=$(date +%s); last=$(cat "$LAST_INTERACTION_RECOVERY_FILE" 2>/dev/null); [ -n "$last" ] && [ $((now-last)) -lt "$RECOVERY_COOLDOWN" ] && return 1
   echo "$now" > "$LAST_INTERACTION_RECOVERY_FILE"
@@ -203,11 +257,13 @@ write_status() {
   sdk=$(sdk_int); model=$(getprop ro.product.model 2>/dev/null); brand=$(getprop ro.product.brand 2>/dev/null)
   go=$(active_pokemon_go); pm=$(active_pokemod); game=$(active_bluetooth_game)
   cat > "$LOCAL_STATUS_FILE" <<EOF
-Bluetooth Stability Helper v0.9.1
+Bluetooth Stability Helper v0.9.2
 Profile: adaptive
+Build ID: $(build_id)
 Device: $brand $model SDK=$sdk
 Bluetooth enabled setting: $(bt_enabled_setting)
 BT process count: $(bt_process_count)
+Pixel May 2026 CP1A guard: $(is_pixel_android16_may2026 && echo active || echo inactive)
 Active Pokémon GO: ${go:-none}
 Active Pokemod/$VPGP3_DISPLAY_NAME: ${pm:-none}
 Active Bluetooth-aware game/app: ${game:-none}
@@ -228,6 +284,8 @@ main_loop() {
       location_health_check
       ble_keepalive
       gms_location_keepalive
+      companion_device_keepalive
+      android16_connectivity_change_patterns && bad=1
       interaction_freeze_patterns && bad=1
       scan_stall_patterns && bad=1
       track_vpgp3_session && bad=1
@@ -241,7 +299,7 @@ main_loop() {
 
 wait_until_boot_complete
 ensure_files
-log "Bluetooth Stability Helper 0.9.1 adaptive engine start"
+log "Bluetooth Stability Helper 0.9.2 adaptive engine start"
 apply_adaptive_defaults
 apply_static_tuning
 MODDIR="$MODDIR" sh "$MODDIR/scripts/diagnostics.sh" >/dev/null 2>&1

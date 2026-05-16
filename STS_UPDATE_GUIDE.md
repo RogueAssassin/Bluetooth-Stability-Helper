@@ -14,14 +14,14 @@ This project is designed for GitHub Desktop, not Git Bash.
 4. Commit in GitHub Desktop with a clear message, for example:
 
 ```text
-Update Bluetooth Stability Helper to v0.9.1
+Update Bluetooth Stability Helper to v0.9.2
 ```
 
 5. Push origin from GitHub Desktop.
 6. In GitHub Desktop, create a tag matching the release version, for example:
 
 ```text
-v0.9.1
+v0.9.2
 ```
 
 7. Push the tag.
@@ -29,7 +29,7 @@ v0.9.1
 9. Upload the Magisk install ZIP asset, for example:
 
 ```text
-bt-stability-helper-v0.9.1.zip
+bt-stability-helper-v0.9.2.zip
 ```
 
 10. Confirm `update.json` points to the same release asset URL.

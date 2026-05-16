@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.9.2
+- Adds Pixel Android 16 May 2026 CP1A.260505.005 build guard.
+- Adds Android 16 companion-device, bond-loss, and encryption-change observers.
+- Adds Pixel connectivity snapshots on stalls.
+- Tightens Pixel CP1A stale-session recovery defaults while retaining Android 12-15 compatibility.
+
 ## v0.9.1
 - Adds Interaction Freeze Guard for the exact symptom where Pokémon GO reaches a stop/Pokémon and the VPGP³+ interaction freezes while Bluetooth still appears connected.
 - Tightens Pixel-first watchdog interval and recovery cooldown.
@@ -8,23 +14,4 @@
 - Keeps GitHub updater, repo layout, logo, and /sdcard/Bluetooth-Stability-Helper runtime path.
 
 ## v0.9.0
-
-- Introduced the Adaptive Bluetooth Stability Engine.
-- Removed dependency on multiple user-facing modes; standard behaviour now focuses on Bluetooth stability automatically.
-- Added Pixel-first Android 12-16 Bluetooth/BLE tuning, with Android 16 guards.
-- Improved VPGP³+ stale-session handling for Pokémon GO + Pokemod sessions.
-- Added Bluetooth-aware game/app detection.
-- Added safer BLE keepalive polling and better GATT/log stall detection.
-- Kept all logs/config under `/sdcard/Bluetooth-Stability-Helper/`.
-- Retained GitHub update JSON and release workflow.
-- Kept Vector/LSPosed untouched.
-
-## v0.8.1
-
-- Added Pokémon Plus/VPG session stale-session monitoring.
-- Improved diagnostics for BLE/GATT/location stalls.
-
-## v0.8.0
-
-- Moved runtime files out of Downloads.
-- Added Pixel and Android 12-16 support checks.
+- Adaptive Bluetooth Stability Engine focused on Pixel, Android 12-16, Pokémon GO, Pokemod and VPGP³+.

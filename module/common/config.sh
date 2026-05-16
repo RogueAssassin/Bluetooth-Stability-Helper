@@ -1,15 +1,16 @@
 #!/system/bin/sh
-# Bluetooth Stability Helper v0.9.1 defaults.
+# Bluetooth Stability Helper v0.9.2 defaults.
 # Override in /sdcard/Bluetooth-Stability-Helper/user-config.sh
 # Design goal: one adaptive Bluetooth stability engine, Pixel-first, Pokémon GO/Pokemod aware.
+# v0.9.2 adds Android 16 Pixel May 2026 CP1A.260505.005 guard tuning.
 
 ENGINE_PROFILE="adaptive"
 WATCHDOG_ENABLED=1
-WATCHDOG_INTERVAL=30
+WATCHDOG_INTERVAL=25
 LOG_ROTATE_SIZE_KB=1024
 MAX_RESTARTS_PER_HOUR=4
 FAILURE_THRESHOLD=2
-RECOVERY_COOLDOWN=180
+RECOVERY_COOLDOWN=150
 
 # Android support range. 31=A12, 32=A12L, 33=A13, 34=A14, 35=A15, 36=A16.
 SUPPORTED_SDK_MIN=31
@@ -17,6 +18,24 @@ SUPPORTED_SDK_MAX=36
 ANDROID16_SDK=36
 ENABLE_ANDROID_VERSION_WARNINGS=1
 ENABLE_SDK_AWARE_TUNING=1
+
+
+# Pixel Android 16 May 2026 build guard. CP1A.260505.005 is the May 2026 Pixel Android 16 QPR3 build.
+PIXEL_ANDROID16_MAY2026_BUILD="CP1A.260505.005"
+PIXEL_ANDROID16_MAY2026_BUILD_PREFIX="CP1A.260505"
+ENABLE_PIXEL_MAY2026_CP1A_GUARD=1
+ENABLE_PIXEL_BUILD_FINGERPRINT_LOG=1
+ENABLE_PIXEL_CONNECTIVITY_SNAPSHOT_ON_STALL=1
+PIXEL_CP1A_WATCHDOG_INTERVAL=20
+PIXEL_CP1A_RECOVERY_COOLDOWN=120
+PIXEL_CP1A_STALE_SESSION_MINUTES=10
+PIXEL_CP1A_FAILURE_THRESHOLD=1
+
+# Android 16 connectivity changes to observe, not override.
+ENABLE_ANDROID16_BOND_LOSS_OBSERVE=1
+ENABLE_ANDROID16_COMPANION_DEVICE_OBSERVE=1
+ENABLE_ANDROID16_JOB_STANDBY_GUARD=1
+ENABLE_ANDROID16_GMS_GUARD=1
 
 # Recovery ladder. Defaults are conservative: diagnose + safe Bluetooth refresh, not app killing.
 ENABLE_AUDIO_ROUTE_REPAIR=1
@@ -55,11 +74,11 @@ POKEMOD_PACKAGE_CANDIDATES="com.pokemod.app.public dev.pokemod com.pokemod com.p
 VPGP3_DISPLAY_NAME="VPGP³+"
 VPGP3_ASCII_NAME="VPGP3+"
 VPGP3_PACKAGE_CANDIDATES="com.pokemod.vpgp3 com.pokemod.vpgp com.vpgp3 app.vpgp3 com.pokemod.plus com.pokemod.vpgpplus"
-BLUETOOTH_GAME_PACKAGE_CANDIDATES="com.nianticlabs.pokemongo com.nianticlabs.pikmin com.nianticlabs.monsterhunter com.nianticlabs.peridot com.pokemod.app.public dev.pokemod com.pokemod com.pokemod.app com.pokemod.espresso"
+BLUETOOTH_GAME_PACKAGE_CANDIDATES="com.nianticlabs.pokemongo com.nianticlabs.pokemongo.ares com.nianticlabs.pikmin com.nianticlabs.monsterhunter com.nianticlabs.peridot com.pokemod.app.public dev.pokemod com.pokemod com.pokemod.app com.pokemod.espresso"
 
 # VPGP³+ stale-session watchdog. Designed for the symptom: catches/spins for a while, then session stalls.
 ENABLE_STALE_SESSION_WATCHDOG=1
-STALE_SESSION_MINUTES=18
+STALE_SESSION_MINUTES=12
 STALE_SESSION_ACTION="bt_refresh"   # log | diagnose | bt_refresh
 STALE_SESSION_BT_REFRESH=1
 STALE_SESSION_APP_REFRESH=0
@@ -77,6 +96,9 @@ ENABLE_GMS_LOCATION_KEEPALIVE=1
 GMS_LOCATION_KEEPALIVE_INTERVAL=90
 ENABLE_BT_CACHE_OBSERVE=1
 ENABLE_CONNECTED_DEVICE_REPAIR_HINTS=1
+ENABLE_COMPANION_DEVICE_KEEPALIVE=1
+COMPANION_DEVICE_KEEPALIVE_INTERVAL=120
+ENABLE_BT_BOND_STATE_SNAPSHOT=1
 ENABLE_POKEMON_GO_APP_IDLE_GUARD=1
 ENABLE_POKEMOD_APP_IDLE_GUARD=1
 
