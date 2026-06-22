@@ -12,9 +12,9 @@ mkdir -p "$EXPORT_DIR" "$IMPORT_DIR" "$LOG_DIR" "$STATE_DIR"
 # ENABLE_A2DP_OFFLOAD_DISABLE=1
 EOF
 import_bundle_if_present() { imported=0; [ -f "$IMPORT_DIR/user-config.sh" ] && cp "$IMPORT_DIR/user-config.sh" "$USERCFG" && chmod 0644 "$USERCFG" && imported=1; echo "$imported"; }
-ui_print "Bluetooth Stability Helper v0.9.2"
+ui_print "Bluetooth Stability Helper v0.10.0"
 ui_print "Profile: Adaptive Bluetooth Stability Engine"
-ui_print "Focus: Pixel Android 12-16, Pokémon GO, Pokemod VPGP³+, and Bluetooth apps"
+ui_print "Focus: Pixel Android 12-17, Pokémon GO, Pokemod VPGP³+, and Bluetooth apps"
 if [ "$(import_bundle_if_present)" = 1 ]; then ui_print "Imported config from $IMPORT_DIR"; fi
 MODDIR="$MODDIR" sh "$MODDIR/scripts/diagnostics.sh" >/dev/null 2>&1
 ui_print "Diagnostics exported to: $EXPORT_DIR"

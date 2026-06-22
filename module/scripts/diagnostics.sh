@@ -9,7 +9,7 @@ mkdir -p "$EXPORT_DIR" "$LOG_DIR" "$CONFIG_DIR" "$STATE_DIR"
 {
  echo "Bluetooth Stability Helper adaptive Bluetooth diagnostics"
  echo "Timestamp: $(date '+%F %T')"
- echo "Version: 0.9.2"
+ echo "Version: 0.10.0"
 echo "Build ID: $(getprop ro.build.id 2>/dev/null)"
 echo "Fingerprint: $(getprop ro.build.fingerprint 2>/dev/null)"
  echo "Profile: adaptive Bluetooth stability engine"
@@ -58,11 +58,14 @@ echo "Fingerprint: $(getprop ro.build.fingerprint 2>/dev/null)"
    cmd appops get "$pkg" 2>/dev/null | grep -E "WAKE_LOCK|RUN_ANY|RUN_IN|BLUETOOTH|LOCATION|FOREGROUND|NOTIFICATION|ALARM" | sed 's/^/    /'
  done
  echo
- echo "Android 16 companion/bond state:"
-dumpsys companiondevice 2>/dev/null | head -120
+ echo "Android 16/17 companion/bond/permission state:"
+dumpsys companiondevice 2>/dev/null | head -160
+echo
+echo "Role/permission related state:"
+dumpsys role 2>/dev/null | head -120
 echo
 echo "Recent Bluetooth/location/VPGP³+/game logs:"
- logcat -d -t 260 2>/dev/null | grep -iE "bluetooth|bt_stack|a2dp|gatt|ble|adapter|hci|location|gnss|fused|go plus|pokemod|vpgp" | tail -n 110
+ logcat -d -t 260 2>/dev/null | grep -iE "bluetooth|bt_stack|a2dp|gatt|ble|adapter|hci|companion|cdm|nearby|permission|rpa|privacy|location|gnss|fused|go plus|pokemod|vpgp|lmkd|audio focus" | tail -n 110
 } > "$OUT"
 cp "$OUT" "$LOCAL_STATUS_FILE" 2>/dev/null
 tail -n 160 "$LOG_DIR/bt-stability.log" > "$EXPORT_DIR/log-tail.txt" 2>/dev/null

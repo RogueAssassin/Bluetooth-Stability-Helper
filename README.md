@@ -2,19 +2,20 @@
 
 ![Bluetooth Stability Helper logo](assets/logo.svg)
 
-**v0.9.2 Adaptive Bluetooth Stability Engine**
+**v0.10.0 Adaptive Bluetooth Stability Engine**
 
-A Magisk module focused on reducing Bluetooth and BLE dropouts on Android 12-16, with Pixel-first tuning and extra awareness for Pokémon GO, Pokemod from Pokemod.dev, and **VPGP³+** style Virtual Pokémon GO Plus sessions.
+A Magisk module focused on reducing Bluetooth and BLE dropouts on Android 12-17, with Pixel-first tuning and extra awareness for Pokémon GO, Pokemod from Pokemod.dev, and **VPGP³+** style Virtual Pokémon GO Plus sessions.
 
-## What changed in v0.9.2
+## What changed in v0.10.0
 
-- Adds Pixel Android 16 May 2026 guard tuning for build `CP1A.260505.005`.
-- Watches Android 16 bond-loss, encryption-change, and Companion Device Manager signals that can affect BLE accessory style sessions.
+- Adds Pixel Android 17 / SDK 37 guard tuning for Google firmware while retaining the Android 16 May 2026 `CP1A.260505.005` guard.
+- Adds CP21/AP3A/BP3A build-family awareness so Android 17 beta/QPR/stable Pixel firmware variants can still receive SDK 37 tuning.
+- Watches Android 16/17 bond-loss, encryption-change, Companion Device Manager, Nearby/Bluetooth permission, BLE privacy, memory-pressure, and background-audio related signals that can affect BLE accessory style sessions.
 - Exports Pixel connectivity snapshots to `/sdcard/Bluetooth-Stability-Helper/export/` when stalls are detected.
-- Tightens VPGP³+ stale-session timing on Pixel Android 16 May 2026 builds while keeping older Android 12-15 support.
+- Tightens VPGP³+ stale-session timing on Pixel Android 17 builds while keeping Android 12-16 support.
 
 - Replaced the old multi-mode flow with one standard adaptive engine.
-- Pixel-first Bluetooth/BLE stability checks for Android 12-16, especially Android 16.
+- Pixel-first Bluetooth/BLE stability checks for Android 12-17, especially Android 16.
 - Stronger Bluetooth process, `bluetooth_manager`, HAL, GATT, and BLE stall observation.
 - Better VPGP³+ stale-session detection for the pattern where spinning/catching works for a while and then stops.
 - Pokémon GO, Pokemod, and Bluetooth-aware game/app detection.

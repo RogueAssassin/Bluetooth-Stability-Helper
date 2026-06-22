@@ -16,6 +16,9 @@ sdk_int() { getprop ro.build.version.sdk 2>/dev/null; }
 build_id() { getprop ro.build.id 2>/dev/null; }
 build_fingerprint() { getprop ro.build.fingerprint 2>/dev/null; }
 is_pixel_android16_may2026() { is_pixel_device || return 1; [ "$(sdk_int)" -ge "$ANDROID16_SDK" ] || return 1; bid="$(build_id)"; fp="$(build_fingerprint)"; echo "$bid $fp" | grep -q "$PIXEL_ANDROID16_MAY2026_BUILD_PREFIX"; }
+is_android17_or_newer() { [ "$(sdk_int)" -ge "$ANDROID17_SDK" ]; }
+is_pixel_android17() { is_pixel_device || return 1; is_android17_or_newer || return 1; }
+is_known_pixel_android17_build_family() { is_pixel_android17 || return 1; bid="$(build_id)"; fp="$(build_fingerprint)"; for prefix in $PIXEL_ANDROID17_KNOWN_BUILD_PREFIXES; do echo "$bid $fp" | grep -q "$prefix" && return 0; done; return 1; }
 brand_lc() { getprop ro.product.brand 2>/dev/null | tr '[:upper:]' '[:lower:]'; }
 manufacturer_lc() { getprop ro.product.manufacturer 2>/dev/null | tr '[:upper:]' '[:lower:]'; }
 is_pixel_device() { [ "$(brand_lc)" = "google" ] || echo "$(getprop ro.product.model 2>/dev/null)" | grep -qi '^pixel'; }
@@ -29,8 +32,21 @@ apply_device_profile() {
     log "Device profile: Pixel/Google"
     ENABLE_A2DP_OFFLOAD_DISABLE=1
     APPLY_RESTRICTED_STANDBY_FIXES=1
-    [ "$sdk" -ge "$ANDROID16_SDK" ] && [ "$ENABLE_PIXEL_ANDROID16_GUARDS" = 1 ] && { WATCHDOG_INTERVAL=25; FAILURE_THRESHOLD=2; log "Android 16 Pixel guards active"; }
-    if [ "$ENABLE_PIXEL_MAY2026_CP1A_GUARD" = 1 ] && is_pixel_android16_may2026; then
+    [ "$sdk" -ge "$ANDROID16_SDK" ] && [ "$ENABLE_PIXEL_ANDROID16_GUARDS" = 1 ] && { WATCHDOG_INTERVAL=25; FAILURE_THRESHOLD=2; log "Android 16+ Pixel guards active"; }
+    if [ "$ENABLE_PIXEL_ANDROID17_GUARD" = 1 ] && is_pixel_android17; then
+      WATCHDOG_INTERVAL="$PIXEL_ANDROID17_WATCHDOG_INTERVAL"
+      RECOVERY_COOLDOWN="$PIXEL_ANDROID17_RECOVERY_COOLDOWN"
+      STALE_SESSION_MINUTES="$PIXEL_ANDROID17_STALE_SESSION_MINUTES"
+      FAILURE_THRESHOLD="$PIXEL_ANDROID17_FAILURE_THRESHOLD"
+      COMPANION_DEVICE_KEEPALIVE_INTERVAL="$ANDROID17_COMPANION_KEEPALIVE_INTERVAL"
+      GMS_LOCATION_KEEPALIVE_INTERVAL="$ANDROID17_GMS_LOCATION_KEEPALIVE_INTERVAL"
+      ENABLE_BLE_KEEPALIVE=1
+      ENABLE_GMS_LOCATION_KEEPALIVE=1
+      ENABLE_COMPANION_DEVICE_KEEPALIVE=1
+      ENABLE_ANDROID17_COMPANION_PERMISSION_OBSERVE=1
+      ENABLE_ANDROID17_BLE_PRIVACY_GUARD=1
+      log "Pixel Android 17 guard active: build=$(build_id) sdk=$(sdk_int) known_family=$(is_known_pixel_android17_build_family && echo yes || echo no) interval=${WATCHDOG_INTERVAL}s stale=${STALE_SESSION_MINUTES}m"
+    elif [ "$ENABLE_PIXEL_MAY2026_CP1A_GUARD" = 1 ] && is_pixel_android16_may2026; then
       WATCHDOG_INTERVAL="$PIXEL_CP1A_WATCHDOG_INTERVAL"
       RECOVERY_COOLDOWN="$PIXEL_CP1A_RECOVERY_COOLDOWN"
       STALE_SESSION_MINUTES="$PIXEL_CP1A_STALE_SESSION_MINUTES"

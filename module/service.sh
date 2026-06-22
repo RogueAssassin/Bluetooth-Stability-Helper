@@ -35,7 +35,7 @@ EOF
 
 apply_adaptive_defaults() {
   apply_device_profile
-  log "Engine profile: adaptive Bluetooth stability; primary target Pixel + Android 12-16; VPGP³+ aware"
+  log "Engine profile: adaptive Bluetooth stability; primary target Pixel + Android 12-17; VPGP³+ aware"
 }
 
 apply_appops_for_pkg() {
@@ -130,6 +130,7 @@ companion_device_keepalive() {
   now=$(date +%s); last=$(cat "$LAST_COMPANION_KEEPALIVE_FILE" 2>/dev/null)
   [ -n "$last" ] && [ $((now-last)) -lt "$COMPANION_DEVICE_KEEPALIVE_INTERVAL" ] && return
   dumpsys companiondevice >/dev/null 2>&1
+  dumpsys role >/dev/null 2>&1
   dumpsys bluetooth_manager >/dev/null 2>&1
   echo "$now" > "$LAST_COMPANION_KEEPALIVE_FILE"
   log "CompanionDevice/Bluetooth keepalive poll executed for Android 16 presence/bond tracking"
@@ -156,7 +157,7 @@ pixel_connectivity_snapshot() {
     echo
     echo "--- thermalservice ---"; dumpsys thermalservice 2>/dev/null
     echo
-    echo "--- recent bt/log patterns ---"; logcat -d -t 360 2>/dev/null | grep -iE 'bluetooth|bt_stack|gatt|hci|l2cap|companion|bond|encryption|niantic|pokemod|vpgp|location|fused' | tail -260
+    echo "--- recent bt/log patterns ---"; logcat -d -t 360 2>/dev/null | grep -iE 'bluetooth|bt_stack|gatt|hci|l2cap|companion|cdm|bond|encryption|nearby|permission|rpa|privacy|niantic|pokemod|vpgp|location|fused|lmkd|audio focus' | tail -260
   } > "$out" 2>/dev/null
   log "Pixel connectivity snapshot exported: $out"
 }
@@ -167,6 +168,18 @@ android16_connectivity_change_patterns() {
   active_bluetooth_game >/dev/null 2>&1 || return 1
   logcat -d -t 360 2>/dev/null | grep -iE 'bond.*(loss|lost|none|removed)|encryption.*(change|failed|lost)|companion.*(presence|unbound|disconnected|timeout)|cdm.*(presence|unbound)|bluetooth.*(bond|encryption)' >/dev/null 2>&1 || return 1
   log "Android 16 connectivity observer matched bond/encryption/companion-device change pattern"
+  pixel_connectivity_snapshot
+  return 0
+}
+
+android17_connectivity_change_patterns() {
+  [ "$ENABLE_PIXEL_ANDROID17_GUARD" = 1 ] || return 1
+  [ "$(sdk_int)" -ge "$ANDROID17_SDK" ] || return 1
+  active_bluetooth_game >/dev/null 2>&1 || return 1
+  # Android 17 adds Companion Device Manager permission/profile changes and tighter background/audio behaviour.
+  # We observe related CDM/permission/BLE privacy/memory-pressure signals and trigger a safe BT refresh only after the normal failure ladder.
+  logcat -d -t 420 2>/dev/null | grep -iE 'companion.*(permission|association|profile|presence|nearby|timeout|disconnected|unbound)|cdm.*(permission|association|profile|presence|nearby|timeout)|bluetooth.*(privacy|address|random|rpa|permission|nearby|scan.*denied)|gatt.*(133|257|timeout|busy|congested|callback|dead)|background audio|audio focus.*denied|low memory|lmkd.*(niantic|pokemod|bluetooth|gms)' >/dev/null 2>&1 || return 1
+  log "Android 17 connectivity observer matched CDM/permission/BLE/privacy/memory-pressure pattern"
   pixel_connectivity_snapshot
   return 0
 }
@@ -257,13 +270,14 @@ write_status() {
   sdk=$(sdk_int); model=$(getprop ro.product.model 2>/dev/null); brand=$(getprop ro.product.brand 2>/dev/null)
   go=$(active_pokemon_go); pm=$(active_pokemod); game=$(active_bluetooth_game)
   cat > "$LOCAL_STATUS_FILE" <<EOF
-Bluetooth Stability Helper v0.9.2
+Bluetooth Stability Helper v0.10.0
 Profile: adaptive
 Build ID: $(build_id)
 Device: $brand $model SDK=$sdk
 Bluetooth enabled setting: $(bt_enabled_setting)
 BT process count: $(bt_process_count)
 Pixel May 2026 CP1A guard: $(is_pixel_android16_may2026 && echo active || echo inactive)
+Pixel Android 17 guard: $(is_pixel_android17 && echo active || echo inactive)
 Active Pokémon GO: ${go:-none}
 Active Pokemod/$VPGP3_DISPLAY_NAME: ${pm:-none}
 Active Bluetooth-aware game/app: ${game:-none}
@@ -286,6 +300,7 @@ main_loop() {
       gms_location_keepalive
       companion_device_keepalive
       android16_connectivity_change_patterns && bad=1
+      android17_connectivity_change_patterns && bad=1
       interaction_freeze_patterns && bad=1
       scan_stall_patterns && bad=1
       track_vpgp3_session && bad=1
@@ -299,7 +314,7 @@ main_loop() {
 
 wait_until_boot_complete
 ensure_files
-log "Bluetooth Stability Helper 0.9.2 adaptive engine start"
+log "Bluetooth Stability Helper 0.10.0 adaptive engine start"
 apply_adaptive_defaults
 apply_static_tuning
 MODDIR="$MODDIR" sh "$MODDIR/scripts/diagnostics.sh" >/dev/null 2>&1

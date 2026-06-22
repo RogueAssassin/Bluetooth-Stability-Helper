@@ -1,8 +1,8 @@
 #!/system/bin/sh
-# Bluetooth Stability Helper v0.9.2 defaults.
+# Bluetooth Stability Helper v0.10.0 defaults.
 # Override in /sdcard/Bluetooth-Stability-Helper/user-config.sh
 # Design goal: one adaptive Bluetooth stability engine, Pixel-first, Pokémon GO/Pokemod aware.
-# v0.9.2 adds Android 16 Pixel May 2026 CP1A.260505.005 guard tuning.
+# v0.10.0 adds Android 17 / SDK 37 Pixel firmware guards while retaining Android 12-16 support.
 
 ENGINE_PROFILE="adaptive"
 WATCHDOG_ENABLED=1
@@ -12,10 +12,11 @@ MAX_RESTARTS_PER_HOUR=4
 FAILURE_THRESHOLD=2
 RECOVERY_COOLDOWN=150
 
-# Android support range. 31=A12, 32=A12L, 33=A13, 34=A14, 35=A15, 36=A16.
+# Android support range. 31=A12, 32=A12L, 33=A13, 34=A14, 35=A15, 36=A16, 37=A17.
 SUPPORTED_SDK_MIN=31
-SUPPORTED_SDK_MAX=36
+SUPPORTED_SDK_MAX=37
 ANDROID16_SDK=36
+ANDROID17_SDK=37
 ENABLE_ANDROID_VERSION_WARNINGS=1
 ENABLE_SDK_AWARE_TUNING=1
 
@@ -36,6 +37,23 @@ ENABLE_ANDROID16_BOND_LOSS_OBSERVE=1
 ENABLE_ANDROID16_COMPANION_DEVICE_OBSERVE=1
 ENABLE_ANDROID16_JOB_STANDBY_GUARD=1
 ENABLE_ANDROID16_GMS_GUARD=1
+
+# Android 17 / Pixel firmware guard. Current public Android 17 rollout is SDK 37;
+# Google Android 17 beta factory images use CP21.260330.011 build family.
+# Stable Pixel Android 17 builds can vary by device/region, so detection is SDK-first
+# with CP21/Android 17 build-family awareness instead of one hard-coded build only.
+PIXEL_ANDROID17_KNOWN_BUILD_PREFIXES="CP21 AP3A BP3A"
+ENABLE_PIXEL_ANDROID17_GUARD=1
+ENABLE_ANDROID17_COMPANION_PERMISSION_OBSERVE=1
+ENABLE_ANDROID17_BG_AUDIO_GUARD=1
+ENABLE_ANDROID17_MEMORY_PRESSURE_GUARD=1
+ENABLE_ANDROID17_BLE_PRIVACY_GUARD=1
+PIXEL_ANDROID17_WATCHDOG_INTERVAL=18
+PIXEL_ANDROID17_RECOVERY_COOLDOWN=110
+PIXEL_ANDROID17_STALE_SESSION_MINUTES=8
+PIXEL_ANDROID17_FAILURE_THRESHOLD=1
+ANDROID17_COMPANION_KEEPALIVE_INTERVAL=90
+ANDROID17_GMS_LOCATION_KEEPALIVE_INTERVAL=75
 
 # Recovery ladder. Defaults are conservative: diagnose + safe Bluetooth refresh, not app killing.
 ENABLE_AUDIO_ROUTE_REPAIR=1
