@@ -1,23 +1,23 @@
 # Bluetooth Stability Helper
 
-![Bluetooth Stability Helper logo](assets/logo.svg)
+<p align="center">
+  <img src="assets/logo.png" alt="Bluetooth Stability Helper" width="420">
+</p>
 
-**v1.0.0 Adaptive Bluetooth Stability Engine**
+**Pixel-first Adaptive Bluetooth Stability Engine for Android**
 
-A Magisk module focused on reducing Bluetooth and BLE dropouts on Android 12-17, with Pixel-first tuning and extra context awareness for **Pokémon GO**, **Pokemod from Pokemod.dev**, and **VPGP³+** style Bluetooth accessory sessions.
+Bluetooth Stability Helper is a Magisk module designed to improve Android Bluetooth, BLE, GATT, Companion Device, location, and idle-service stability. It is built mainly for Google Pixel devices while retaining safer support for other Android brands.
 
-## v1.0.0 focus
+It is especially useful when Bluetooth-heavy apps are active, including **Pokémon GO**, **Pokemod from Pokemod.dev**, and **VPGP³+** style virtual accessory sessions.
 
-- One standard adaptive Bluetooth engine; no mode switching.
-- Pixel-first Android 12-17 Bluetooth, BLE, GATT, Companion Device, location, idle, and firmware/build-family awareness.
-- Monthly Pixel patch readiness by SDK, build ID, build family, and security patch level.
-- Pokémon GO and Pokemod support by package/name detection only. No app-version lock-in.
-- VPGP³+ stall handling for sessions that start catching/spinning and then freeze while Bluetooth still appears connected.
-- Bluetooth health scoring exported to `/sdcard/Bluetooth-Stability-Helper/metrics/bluetooth-health.json`.
-- Recovery history exported to `/sdcard/Bluetooth-Stability-Helper/metrics/recovery-history.jsonl`.
-- Diagnostics exports under `/sdcard/Bluetooth-Stability-Helper/export/`.
-- GitHub/Magisk update JSON retained.
-- Vector/LSPosed safe: this module does not install app hooks, Zygisk hooks, or Xposed modules.
+## Key features
+
+- Pixel-first Bluetooth stability tuning for Android 12–17.
+- Adaptive Bluetooth health engine with BLE, GATT, HAL, binder, location, and idle-state checks.
+- Pokémon GO and Pokemod awareness by package/name detection only.
+- VPGP³+ stall detection for sessions that appear connected but stop progressing.
+- Recovery history and health metrics stored under `/sdcard/Bluetooth-Stability-Helper/`.
+- Vector/LSPosed safe: no app hooks, Zygisk hooks, or Xposed modules are installed.
 
 ## Runtime files
 
@@ -41,7 +41,7 @@ A Magisk module focused on reducing Bluetooth and BLE dropouts on Android 12-17,
 - Android 16
 - Android 17
 
-Pixel devices receive the most specific tuning. Samsung, Xiaomi/Redmi/Poco, and generic Android devices remain supported with safer generic profiles.
+Pixel devices receive the most specific tuning. Samsung, Xiaomi/Redmi/Poco, and generic Android devices use safer fallback profiles.
 
 ## Pokémon GO / Pokemod / VPGP³+ support
 
@@ -49,11 +49,11 @@ The module checks for names/packages such as:
 
 - Pokémon GO: `com.nianticlabs.pokemongo`
 - Pokemod: `com.pokemod.app.public` plus fallback Pokemod package names
-- VPGP³+: Pokemod/VPGP³+ candidate names only
+- VPGP³+: Pokemod/VPGP³+ candidate labels
 
-It does **not** track or enforce app versions. It does **not** automate gameplay. It focuses on Android Bluetooth/BLE/location stability and diagnostics while those apps are active.
+It does not track or enforce app versions. It does not automate gameplay. It focuses on Android Bluetooth/BLE/location stability and diagnostics while those apps are active.
 
-## User config
+## Optional user config
 
 The module works out of the box. Optional overrides live here:
 
@@ -70,12 +70,15 @@ ENABLE_A2DP_OFFLOAD_DISABLE=1
 MAX_RESTARTS_PER_HOUR=4
 ```
 
-## GitHub updater
+## Install
 
-`module.prop` points to:
+1. Install the module ZIP in Magisk.
+2. Reboot.
+3. Let the module run automatically.
+4. Check status/logs under `/sdcard/Bluetooth-Stability-Helper/` if needed.
 
-```text
-https://raw.githubusercontent.com/RogueAssassin/Bluetooth-Stability-Helper/main/update.json
-```
+## Project assets
 
-For future updates, use GitHub Desktop for normal commits/pushes, then create the matching GitHub Release and upload the Magisk ZIP asset. Keep `version`, `versionCode`, release tag, ZIP filename, and `update.json` aligned.
+- `assets/logo.png` — current README logo.
+- `assets/promo.png` — full promo graphic.
+- `assets/banner.png` — wide banner graphic.

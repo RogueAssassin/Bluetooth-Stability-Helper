@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
-  "versionCode": 1000,
-  "zipUrl": "https://github.com/RogueAssassin/Bluetooth-Stability-Helper/releases/download/v1.0.0/bt-stability-helper-v1.0.0.zip",
+  "version": "1.0.1",
+  "versionCode": 1001,
+  "zipUrl": "https://github.com/RogueAssassin/Bluetooth-Stability-Helper/releases/download/v1.0.1/bt-stability-helper-v1.0.1.zip",
   "changelog": "https://raw.githubusercontent.com/RogueAssassin/Bluetooth-Stability-Helper/main/CHANGELOG.md"
 }

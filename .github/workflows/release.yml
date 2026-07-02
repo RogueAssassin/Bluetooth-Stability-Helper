@@ -38,22 +38,25 @@ jobs:
             exit 1
           fi
 
-      - name: Build install zip
+      - name: Build Magisk install zip
         shell: bash
         run: |
           cd module
-          zip -r "../${{ steps.version.outputs.zip_name }}" .
+          zip -r -9 "../${{ steps.version.outputs.zip_name }}" .
 
-      - name: Validate zip layout
+      - name: Validate Magisk zip layout
         shell: bash
         run: |
           unzip -l "${{ steps.version.outputs.zip_name }}"
           unzip -l "${{ steps.version.outputs.zip_name }}" | grep -q 'module.prop'
+          unzip -l "${{ steps.version.outputs.zip_name }}" | grep -q 'service.sh'
+          unzip -l "${{ steps.version.outputs.zip_name }}" | grep -q 'customize.sh'
 
-      - name: Create GitHub Release
+      - name: Create or update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: v${{ steps.version.outputs.version }} Release
+          name: Bluetooth Stability Helper v${{ steps.version.outputs.version }}
+          tag_name: v${{ steps.version.outputs.version }}
           files: ${{ steps.version.outputs.zip_name }}
           generate_release_notes: true
           draft: false

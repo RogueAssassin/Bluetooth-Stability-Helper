@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.0.0
+## v1.0.1
 
 - Promoted the project to the standard adaptive Bluetooth stability engine.
 - Added Bluetooth health scoring and metrics export.

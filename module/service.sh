@@ -283,7 +283,7 @@ write_status() {
   sdk=$(sdk_int); model=$(getprop ro.product.model 2>/dev/null); brand=$(getprop ro.product.brand 2>/dev/null)
   go=$(active_pokemon_go); pm=$(active_pokemod); game=$(active_bluetooth_game)
   cat > "$LOCAL_STATUS_FILE" <<EOF
-Bluetooth Stability Helper v1.0.0
+Bluetooth Stability Helper v1.0.1
 Profile: adaptive
 Build ID: $(build_id)
 Device: $brand $model SDK=$sdk
@@ -329,7 +329,7 @@ main_loop() {
 
 wait_until_boot_complete
 ensure_files
-log "Bluetooth Stability Helper 1.0.0 adaptive engine start"
+log "Bluetooth Stability Helper 1.0.1 adaptive engine start"
 apply_adaptive_defaults
 apply_static_tuning
 MODDIR="$MODDIR" sh "$MODDIR/scripts/diagnostics.sh" >/dev/null 2>&1

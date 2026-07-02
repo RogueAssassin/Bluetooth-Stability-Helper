@@ -24,13 +24,20 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "zip_name=bt-stability-helper-v${VERSION}.zip" >> "$GITHUB_OUTPUT"
 
-      - name: Create install zip
+      - name: Create Magisk install zip
         shell: bash
         run: |
           cd module
-          zip -r "../${{ steps.version.outputs.zip_name }}" .
+          zip -r -9 "../${{ steps.version.outputs.zip_name }}" .
 
-      - name: Upload artifact
+      - name: Validate Magisk zip layout
+        shell: bash
+        run: |
+          unzip -l "${{ steps.version.outputs.zip_name }}" | grep -q 'module.prop'
+          unzip -l "${{ steps.version.outputs.zip_name }}" | grep -q 'service.sh'
+          unzip -l "${{ steps.version.outputs.zip_name }}" | grep -q 'customize.sh'
+
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: bt-stability-helper-v${{ steps.version.outputs.version }}
