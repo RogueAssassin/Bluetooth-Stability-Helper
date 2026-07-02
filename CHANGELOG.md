@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.0.0
+
+- Promoted the project to the standard adaptive Bluetooth stability engine.
+- Added Bluetooth health scoring and metrics export.
+- Added monthly Pixel firmware/build/security-patch awareness without hard-coding unreleased updates.
+- Kept Android 12-17 support with Pixel-first tuning.
+- Kept Pokémon GO, Pokemod, and VPGP³+ support name/package based only, with no app-version lock-in.
+- Added recovery history JSONL metrics.
+- Retained GitHub updater, workflows, repo layout, logo, and `/sdcard/Bluetooth-Stability-Helper/` runtime paths.
+
 ## v0.10.0
 
 - Added Android 17 / SDK 37 support range while retaining Android 12-16 behaviour.

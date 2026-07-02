@@ -2,27 +2,22 @@
 
 ![Bluetooth Stability Helper logo](assets/logo.svg)
 
-**v0.10.0 Adaptive Bluetooth Stability Engine**
+**v1.0.0 Adaptive Bluetooth Stability Engine**
 
-A Magisk module focused on reducing Bluetooth and BLE dropouts on Android 12-17, with Pixel-first tuning and extra awareness for Pokémon GO, Pokemod from Pokemod.dev, and **VPGP³+** style Virtual Pokémon GO Plus sessions.
+A Magisk module focused on reducing Bluetooth and BLE dropouts on Android 12-17, with Pixel-first tuning and extra context awareness for **Pokémon GO**, **Pokemod from Pokemod.dev**, and **VPGP³+** style Bluetooth accessory sessions.
 
-## What changed in v0.10.0
+## v1.0.0 focus
 
-- Adds Pixel Android 17 / SDK 37 guard tuning for Google firmware while retaining the Android 16 May 2026 `CP1A.260505.005` guard.
-- Adds CP21/AP3A/BP3A build-family awareness so Android 17 beta/QPR/stable Pixel firmware variants can still receive SDK 37 tuning.
-- Watches Android 16/17 bond-loss, encryption-change, Companion Device Manager, Nearby/Bluetooth permission, BLE privacy, memory-pressure, and background-audio related signals that can affect BLE accessory style sessions.
-- Exports Pixel connectivity snapshots to `/sdcard/Bluetooth-Stability-Helper/export/` when stalls are detected.
-- Tightens VPGP³+ stale-session timing on Pixel Android 17 builds while keeping Android 12-16 support.
-
-- Replaced the old multi-mode flow with one standard adaptive engine.
-- Pixel-first Bluetooth/BLE stability checks for Android 12-17, especially Android 16.
-- Stronger Bluetooth process, `bluetooth_manager`, HAL, GATT, and BLE stall observation.
-- Better VPGP³+ stale-session detection for the pattern where spinning/catching works for a while and then stops.
-- Pokémon GO, Pokemod, and Bluetooth-aware game/app detection.
-- Safe AppOps and device-idle allowances for Bluetooth, Google Play services, Pokémon GO, Pokemod, and known Bluetooth game candidates.
-- Logs/config/status kept under `/sdcard/Bluetooth-Stability-Helper/`, not Downloads.
+- One standard adaptive Bluetooth engine; no mode switching.
+- Pixel-first Android 12-17 Bluetooth, BLE, GATT, Companion Device, location, idle, and firmware/build-family awareness.
+- Monthly Pixel patch readiness by SDK, build ID, build family, and security patch level.
+- Pokémon GO and Pokemod support by package/name detection only. No app-version lock-in.
+- VPGP³+ stall handling for sessions that start catching/spinning and then freeze while Bluetooth still appears connected.
+- Bluetooth health scoring exported to `/sdcard/Bluetooth-Stability-Helper/metrics/bluetooth-health.json`.
+- Recovery history exported to `/sdcard/Bluetooth-Stability-Helper/metrics/recovery-history.jsonl`.
+- Diagnostics exports under `/sdcard/Bluetooth-Stability-Helper/export/`.
 - GitHub/Magisk update JSON retained.
-- Vector/LSPosed safe: this module does not install hooks or modify Vector.
+- Vector/LSPosed safe: this module does not install app hooks, Zygisk hooks, or Xposed modules.
 
 ## Runtime files
 
@@ -32,13 +27,35 @@ A Magisk module focused on reducing Bluetooth and BLE dropouts on Android 12-17,
 ├── status.txt
 ├── logs/
 ├── state/
+├── metrics/
 ├── export/
 └── import/
 ```
 
+## Supported Android range
+
+- Android 12 / 12L
+- Android 13
+- Android 14
+- Android 15
+- Android 16
+- Android 17
+
+Pixel devices receive the most specific tuning. Samsung, Xiaomi/Redmi/Poco, and generic Android devices remain supported with safer generic profiles.
+
+## Pokémon GO / Pokemod / VPGP³+ support
+
+The module checks for names/packages such as:
+
+- Pokémon GO: `com.nianticlabs.pokemongo`
+- Pokemod: `com.pokemod.app.public` plus fallback Pokemod package names
+- VPGP³+: Pokemod/VPGP³+ candidate names only
+
+It does **not** track or enforce app versions. It does **not** automate gameplay. It focuses on Android Bluetooth/BLE/location stability and diagnostics while those apps are active.
+
 ## User config
 
-The module now uses one adaptive profile by default. Edit this file only when you want to override behaviour:
+The module works out of the box. Optional overrides live here:
 
 ```text
 /sdcard/Bluetooth-Stability-Helper/user-config.sh
@@ -48,21 +65,10 @@ Common safe overrides:
 
 ```sh
 WATCHDOG_INTERVAL=40
-STALE_SESSION_MINUTES=42
+STALE_SESSION_MINUTES=12
 ENABLE_A2DP_OFFLOAD_DISABLE=1
 MAX_RESTARTS_PER_HOUR=4
 ```
-
-## Pokémon GO / Pokemod / VPGP³+ focus
-
-The module checks for:
-
-- `com.nianticlabs.pokemongo`
-- `com.pokemod.app.public`
-- other Pokemod/VPGP³+ candidate packages
-- other likely Bluetooth-aware Niantic/game packages
-
-It does not automate gameplay. It focuses on Android Bluetooth, BLE, location, idle, and diagnostics stability.
 
 ## GitHub updater
 
@@ -72,4 +78,4 @@ It does not automate gameplay. It focuses on Android Bluetooth, BLE, location, i
 https://raw.githubusercontent.com/RogueAssassin/Bluetooth-Stability-Helper/main/update.json
 ```
 
-Each future update should increase both `version` and `versionCode`, publish the Magisk ZIP as a GitHub Release asset, and update `update.json`.
+For future updates, use GitHub Desktop for normal commits/pushes, then create the matching GitHub Release and upload the Magisk ZIP asset. Keep `version`, `versionCode`, release tag, ZIP filename, and `update.json` aligned.

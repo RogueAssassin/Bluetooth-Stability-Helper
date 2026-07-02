@@ -9,7 +9,7 @@ mkdir -p "$EXPORT_DIR" "$LOG_DIR" "$CONFIG_DIR" "$STATE_DIR"
 {
  echo "Bluetooth Stability Helper adaptive Bluetooth diagnostics"
  echo "Timestamp: $(date '+%F %T')"
- echo "Version: 0.10.0"
+ echo "Version: 1.0.0"
 echo "Build ID: $(getprop ro.build.id 2>/dev/null)"
 echo "Fingerprint: $(getprop ro.build.fingerprint 2>/dev/null)"
  echo "Profile: adaptive Bluetooth stability engine"
@@ -22,6 +22,9 @@ echo "Fingerprint: $(getprop ro.build.fingerprint 2>/dev/null)"
  echo "Security patch: $(getprop ro.build.version.security_patch)"
  echo "Build fingerprint: $(getprop ro.build.fingerprint)"
  echo "Zygisk: $(magisk --zygisk 2>/dev/null || echo unknown)"
+ echo "Bluetooth health score: $(bluetooth_health_score 2>/dev/null)"
+ echo "Build family: $(build_family 2>/dev/null)"
+ echo "Patch awareness: SDK/build/security-patch profile, no unreleased-patch hard-coding"
  echo "Vector/LSPosed safety: no Zygisk or ART hooks are installed by this module"
  echo
  echo "Bluetooth/location settings:"
@@ -48,7 +51,7 @@ echo "Fingerprint: $(getprop ro.build.fingerprint 2>/dev/null)"
    if pidof "$name" >/dev/null 2>&1; then echo "  alive: $name"; else echo "  missing: $name"; fi
  done
  echo
- echo "Pokémon GO / Pokemod / VPGP³+ / Bluetooth game packages and appops:"
+ echo "Pokémon GO / Pokemod / VPGP³+ / Bluetooth game package-name checks and appops:"
  seen=""
  for pkg in $POKEMON_GO_PACKAGE_CANDIDATES $POKEMOD_PACKAGE_CANDIDATES $VPGP3_PACKAGE_CANDIDATES $BLUETOOTH_GAME_PACKAGE_CANDIDATES; do
    echo " $seen " | grep -q " $pkg " && continue; seen="$seen $pkg"
@@ -70,3 +73,6 @@ echo "Recent Bluetooth/location/VPGP³+/game logs:"
 cp "$OUT" "$LOCAL_STATUS_FILE" 2>/dev/null
 tail -n 160 "$LOG_DIR/bt-stability.log" > "$EXPORT_DIR/log-tail.txt" 2>/dev/null
 cp "$LOCAL_USER_CONFIG" "$EXPORT_DIR/user-config.sh" 2>/dev/null
+
+cp "$CONFIG_DIR/metrics/bluetooth-health.json" "$EXPORT_DIR/bluetooth-health.json" 2>/dev/null
+tail -n 80 "$CONFIG_DIR/metrics/recovery-history.jsonl" > "$EXPORT_DIR/recovery-history.jsonl" 2>/dev/null

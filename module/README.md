@@ -1,4 +1,3 @@
-Bluetooth Stability Helper v0.10.0 module payload
+# Bluetooth Stability Helper module
 
-
-Android 17 support: SDK 37 Pixel guard with CP21/AP3A/BP3A build-family awareness.
+Installable Magisk module files for v1.0.0. Runtime data is stored in `/sdcard/Bluetooth-Stability-Helper/`.

@@ -1,8 +1,8 @@
 #!/system/bin/sh
-# Bluetooth Stability Helper v0.10.0 defaults.
+# Bluetooth Stability Helper v1.0.0 defaults.
 # Override in /sdcard/Bluetooth-Stability-Helper/user-config.sh
 # Design goal: one adaptive Bluetooth stability engine, Pixel-first, Pokémon GO/Pokemod aware.
-# v0.10.0 adds Android 17 / SDK 37 Pixel firmware guards while retaining Android 12-16 support.
+# v1.0.0 formalises the Pixel-first adaptive engine, monthly firmware awareness, and name-only Pokémon GO/Pokemod/VPGP³+ support without app-version lock-in.
 
 ENGINE_PROFILE="adaptive"
 WATCHDOG_ENABLED=1
@@ -55,6 +55,18 @@ PIXEL_ANDROID17_FAILURE_THRESHOLD=1
 ANDROID17_COMPANION_KEEPALIVE_INTERVAL=90
 ANDROID17_GMS_LOCATION_KEEPALIVE_INTERVAL=75
 
+# Monthly Pixel/Android patch readiness. The module does not hard-code unreleased patches;
+# it records build/security-patch drift and applies SDK/profile guards dynamically.
+ENABLE_MONTHLY_PIXEL_PATCH_AWARENESS=1
+ENABLE_SECURITY_PATCH_DRIFT_LOG=1
+ENABLE_BUILD_FAMILY_METRICS=1
+ENABLE_BLUETOOTH_HEALTH_SCORE=1
+HEALTH_SCORE_EXPORT_INTERVAL=60
+HEALTH_SCORE_RECOVERY_THRESHOLD=55
+HEALTH_SCORE_WARN_THRESHOLD=70
+HEALTH_SCORE_ACTIVE_GAME_WEIGHT=1
+
+
 # Recovery ladder. Defaults are conservative: diagnose + safe Bluetooth refresh, not app killing.
 ENABLE_AUDIO_ROUTE_REPAIR=1
 ENABLE_BT_PROCESS_CHECK=1
@@ -82,9 +94,9 @@ ENABLE_SAMSUNG_TUNING=1
 ENABLE_MIUI_TUNING=1
 ENABLE_GENERIC_VENDOR_TUNING=1
 
-# Pokémon GO / Pokemod / VPGP³+ support checker.
+# Pokémon GO / Pokemod / VPGP³+ support checker. Name/package detection only; no app-version lock-in.
 POKEMON_GO_PACKAGE="com.nianticlabs.pokemongo"
-POKEMON_GO_PACKAGE_CANDIDATES="com.nianticlabs.pokemongo com.nianticlabs.pokemongo.ares"
+POKEMON_GO_PACKAGE_CANDIDATES="com.nianticlabs.pokemongo"
 POKEMOD_CHECK_ENABLED=1
 POKEMOD_REQUIRED_FOR_GO=0
 POKEMOD_WARN_ONLY=1
@@ -92,7 +104,7 @@ POKEMOD_PACKAGE_CANDIDATES="com.pokemod.app.public dev.pokemod com.pokemod com.p
 VPGP3_DISPLAY_NAME="VPGP³+"
 VPGP3_ASCII_NAME="VPGP3+"
 VPGP3_PACKAGE_CANDIDATES="com.pokemod.vpgp3 com.pokemod.vpgp com.vpgp3 app.vpgp3 com.pokemod.plus com.pokemod.vpgpplus"
-BLUETOOTH_GAME_PACKAGE_CANDIDATES="com.nianticlabs.pokemongo com.nianticlabs.pokemongo.ares com.nianticlabs.pikmin com.nianticlabs.monsterhunter com.nianticlabs.peridot com.pokemod.app.public dev.pokemod com.pokemod com.pokemod.app com.pokemod.espresso"
+BLUETOOTH_GAME_PACKAGE_CANDIDATES="com.nianticlabs.pokemongo com.nianticlabs.pikmin com.nianticlabs.monsterhunter com.nianticlabs.peridot com.pokemod.app.public dev.pokemod com.pokemod com.pokemod.app com.pokemod.espresso"
 
 # VPGP³+ stale-session watchdog. Designed for the symptom: catches/spins for a while, then session stalls.
 ENABLE_STALE_SESSION_WATCHDOG=1

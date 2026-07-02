@@ -14,16 +14,18 @@ LAST_STALE_FILE="$STATE_DIR/vpgp3_last_stale"
 LAST_KEEPALIVE_FILE="$STATE_DIR/last_ble_keepalive"
 LAST_GMS_LOCATION_KEEPALIVE_FILE="$STATE_DIR/last_gms_location_keepalive"
 LAST_COMPANION_KEEPALIVE_FILE="$STATE_DIR/last_companion_keepalive"
+LAST_HEALTH_EXPORT_FILE="$STATE_DIR/last_health_export"
+RECOVERY_HISTORY_FILE="$CONFIG_DIR/metrics/recovery-history.jsonl"
 INTERACTION_FREEZE_FILE="$STATE_DIR/interaction_freeze_count"
 LAST_INTERACTION_RECOVERY_FILE="$STATE_DIR/last_interaction_recovery"
-mkdir -p "$STATE_DIR" "$CONFIG_DIR" "$CONFIG_DIR/logs" "$EXPORT_DIR" "$CONFIG_DIR/import"
+mkdir -p "$STATE_DIR" "$CONFIG_DIR" "$CONFIG_DIR/logs" "$EXPORT_DIR" "$CONFIG_DIR/import" "$CONFIG_DIR/metrics"
 . "$MODDIR/common/config.sh"
 [ -f "$USERCFG" ] && . "$USERCFG"
 . "$MODDIR/scripts/lib.sh"
 
 rotate_log_if_needed() { [ -f "$LOG" ] || return; size_kb=$(du -k "$LOG" | awk '{print $1}'); [ "$size_kb" -gt "$LOG_ROTATE_SIZE_KB" ] && mv "$LOG" "$LOG.1" 2>/dev/null && touch "$LOG"; }
 wait_until_boot_complete() { until [ "$(getprop sys.boot_completed)" = "1" ]; do sleep 5; done; sleep 25; }
-ensure_files() { mkdir -p "$STATE_DIR" "$EXPORT_DIR" "$CONFIG_DIR/logs" "$CONFIG_DIR/import"; [ -f "$USERCFG" ] || cat > "$USERCFG" <<'EOF'
+ensure_files() { mkdir -p "$STATE_DIR" "$EXPORT_DIR" "$CONFIG_DIR/logs" "$CONFIG_DIR/import" "$CONFIG_DIR/metrics"; [ -f "$USERCFG" ] || cat > "$USERCFG" <<'EOF'
 # Bluetooth Stability Helper local overrides.
 # Keep this file under /sdcard/Bluetooth-Stability-Helper/ so Downloads stays clean.
 # Example safe overrides:
@@ -35,7 +37,7 @@ EOF
 
 apply_adaptive_defaults() {
   apply_device_profile
-  log "Engine profile: adaptive Bluetooth stability; primary target Pixel + Android 12-17; VPGP³+ aware"
+  log "Engine profile: adaptive Bluetooth stability; primary target Pixel + Android 12-17; monthly patch aware; Pokémon GO/Pokemod/VPGP³+ name-aware"
 }
 
 apply_appops_for_pkg() {
@@ -246,7 +248,7 @@ pokemon_stack_health_bad() {
 }
 
 count_recent_restarts() { now=$(date +%s); cutoff=$((now - 3600)); [ -f "$RESTARTS_FILE" ] || { echo 0; return; }; awk -v cutoff="$cutoff" '$1 >= cutoff {count++} END {print count+0}' "$RESTARTS_FILE"; }
-record_restart() { date +%s >> "$RESTARTS_FILE"; date +%s > "$LAST_RECOVERY_FILE"; }
+record_restart() { now=$(date +%s); echo "$now" >> "$RESTARTS_FILE"; echo "$now" > "$LAST_RECOVERY_FILE"; mkdir -p "$CONFIG_DIR/metrics"; echo "{\"timestamp\":\"$(date '+%F %T')\",\"action\":\"bt_refresh\",\"score\":\"$(bluetooth_health_score 2>/dev/null)\",\"build_id\":\"$(build_id)\"}" >> "$RECOVERY_HISTORY_FILE"; }
 recovery_cooldown_ok() { [ -f "$LAST_RECOVERY_FILE" ] || return 0; last=$(cat "$LAST_RECOVERY_FILE" 2>/dev/null); [ -z "$last" ] && return 0; delta=$(($(date +%s)-last)); [ "$delta" -ge "$RECOVERY_COOLDOWN" ]; }
 get_fail_count() { [ -f "$FAIL_COUNT_FILE" ] && cat "$FAIL_COUNT_FILE" || echo 0; }
 set_fail_count() { echo "$1" > "$FAIL_COUNT_FILE"; }
@@ -266,11 +268,22 @@ restart_bt_stack() {
   fi
 }
 
+periodic_health_export() {
+  [ "${ENABLE_BLUETOOTH_HEALTH_SCORE:-1}" = 1 ] || return 0
+  now=$(date +%s); last=$(cat "$LAST_HEALTH_EXPORT_FILE" 2>/dev/null)
+  [ -n "$last" ] && [ $((now-last)) -lt "${HEALTH_SCORE_EXPORT_INTERVAL:-60}" ] && return 0
+  echo "$now" > "$LAST_HEALTH_EXPORT_FILE"
+  score=$(export_bluetooth_health_score 2>/dev/null)
+  [ -n "$score" ] && log "Bluetooth health score: $score"
+  [ -n "$score" ] && [ "$score" -lt "${HEALTH_SCORE_RECOVERY_THRESHOLD:-55}" ] && active_bluetooth_game >/dev/null 2>&1 && return 1
+  return 0
+}
+
 write_status() {
   sdk=$(sdk_int); model=$(getprop ro.product.model 2>/dev/null); brand=$(getprop ro.product.brand 2>/dev/null)
   go=$(active_pokemon_go); pm=$(active_pokemod); game=$(active_bluetooth_game)
   cat > "$LOCAL_STATUS_FILE" <<EOF
-Bluetooth Stability Helper v0.10.0
+Bluetooth Stability Helper v1.0.0
 Profile: adaptive
 Build ID: $(build_id)
 Device: $brand $model SDK=$sdk
@@ -280,6 +293,7 @@ Pixel May 2026 CP1A guard: $(is_pixel_android16_may2026 && echo active || echo i
 Pixel Android 17 guard: $(is_pixel_android17 && echo active || echo inactive)
 Active Pokémon GO: ${go:-none}
 Active Pokemod/$VPGP3_DISPLAY_NAME: ${pm:-none}
+Bluetooth health score: $(bluetooth_health_score 2>/dev/null)
 Active Bluetooth-aware game/app: ${game:-none}
 Last updated: $(date '+%F %T')
 Logs: $LOG
@@ -299,6 +313,7 @@ main_loop() {
       ble_keepalive
       gms_location_keepalive
       companion_device_keepalive
+      periodic_health_export || bad=1
       android16_connectivity_change_patterns && bad=1
       android17_connectivity_change_patterns && bad=1
       interaction_freeze_patterns && bad=1
@@ -314,7 +329,7 @@ main_loop() {
 
 wait_until_boot_complete
 ensure_files
-log "Bluetooth Stability Helper 0.10.0 adaptive engine start"
+log "Bluetooth Stability Helper 1.0.0 adaptive engine start"
 apply_adaptive_defaults
 apply_static_tuning
 MODDIR="$MODDIR" sh "$MODDIR/scripts/diagnostics.sh" >/dev/null 2>&1

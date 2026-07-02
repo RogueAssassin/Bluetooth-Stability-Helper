@@ -1,43 +1,34 @@
 # STS Update Guide - GitHub Desktop Flow
 
-This project is designed for GitHub Desktop, not Git Bash.
+This project uses the same repo-style flow: source files in the repo root, installable Magisk files in `module/`, workflows in `.github/workflows/`, and Magisk updater metadata in `update.json`.
 
 ## Future update steps
 
-1. Open the repo in **GitHub Desktop**.
-2. Replace/update files in the repo using File Explorer.
-3. Update these version fields:
-   - `module/module.prop`
-   - `update.json`
-   - `CHANGELOG.md`
-   - README version notes if needed
-4. Commit in GitHub Desktop with a clear message, for example:
+1. Open the repo in GitHub Desktop.
+2. Pull the latest `main`.
+3. Edit the module files.
+4. Update `module/module.prop`:
+   - `version=`
+   - `versionCode=`
+5. Update `update.json` with the same version, versionCode, release tag, and ZIP URL.
+6. Update `CHANGELOG.md`.
+7. Commit in GitHub Desktop.
+8. Push to GitHub.
+9. Create a GitHub Release using the matching tag, for example `v1.0.1`.
+10. Upload the Magisk ZIP asset with the exact filename used in `update.json`.
+11. Test Magisk update detection.
 
-```text
-Update Bluetooth Stability Helper to v0.10.0
-```
+## Version rules
 
-5. Push origin from GitHub Desktop.
-6. In GitHub Desktop, create a tag matching the release version, for example:
-
-```text
-v0.10.0
-```
-
-7. Push the tag.
-8. Open GitHub Releases in the browser and create a release from that tag.
-9. Upload the Magisk install ZIP asset, for example:
-
-```text
-bt-stability-helper-v0.10.0.zip
-```
-
-10. Confirm `update.json` points to the same release asset URL.
-
-## Rules
-
-- Always increase `versionCode`.
-- Keep the source repo layout the same.
+- Increase `versionCode` every release.
+- Keep the logo path stable: `assets/logo.svg`.
 - Keep runtime files under `/sdcard/Bluetooth-Stability-Helper/`.
-- Do not add Vector/LSPosed hooks to this Magisk module.
-- Do not put version numbers inside the logo so it does not need changing every release.
+- Keep Pokémon GO/Pokemod support package-name based only unless there is a specific reason to add a new package name.
+- Do not add LSPosed/Vector hooks to this module. Keep it Magisk/system-side only.
+
+## Monthly Pixel patch process
+
+1. Check the installed device build ID, SDK, and security patch from diagnostics.
+2. Add a new build-family guard only if Google changes Bluetooth, Companion Device, location, BLE, GATT, audio route, or background execution behaviour.
+3. Prefer adaptive detection over hard-coded unreleased patch assumptions.
+4. Release via GitHub Desktop + GitHub Releases so Magisk can update directly.

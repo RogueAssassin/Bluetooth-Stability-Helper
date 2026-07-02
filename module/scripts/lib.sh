@@ -15,6 +15,9 @@ appops_allow_safe() { pkg="$1"; op="$2"; package_installed "$pkg" || return 0; c
 sdk_int() { getprop ro.build.version.sdk 2>/dev/null; }
 build_id() { getprop ro.build.id 2>/dev/null; }
 build_fingerprint() { getprop ro.build.fingerprint 2>/dev/null; }
+security_patch() { getprop ro.build.version.security_patch 2>/dev/null; }
+build_family() { build_id | sed 's/[0-9].*//' 2>/dev/null; }
+write_metric_json() { file="$1"; shift; mkdir -p "$STATE_DIR" "${CONFIG_DIR:-/sdcard/Bluetooth-Stability-Helper}/metrics"; printf '%s\n' "$*" > "$file"; }
 is_pixel_android16_may2026() { is_pixel_device || return 1; [ "$(sdk_int)" -ge "$ANDROID16_SDK" ] || return 1; bid="$(build_id)"; fp="$(build_fingerprint)"; echo "$bid $fp" | grep -q "$PIXEL_ANDROID16_MAY2026_BUILD_PREFIX"; }
 is_android17_or_newer() { [ "$(sdk_int)" -ge "$ANDROID17_SDK" ]; }
 is_pixel_android17() { is_pixel_device || return 1; is_android17_or_newer || return 1; }
@@ -24,6 +27,41 @@ manufacturer_lc() { getprop ro.product.manufacturer 2>/dev/null | tr '[:upper:]'
 is_pixel_device() { [ "$(brand_lc)" = "google" ] || echo "$(getprop ro.product.model 2>/dev/null)" | grep -qi '^pixel'; }
 is_samsung_device() { [ "$(manufacturer_lc)" = "samsung" ] || [ "$(brand_lc)" = "samsung" ]; }
 is_miui_device() { getprop ro.miui.ui.version.name 2>/dev/null | grep -q . || [ "$(brand_lc)" = "xiaomi" ] || [ "$(brand_lc)" = "redmi" ] || [ "$(brand_lc)" = "poco" ]; }
+recent_bt_stall_score_penalty() {
+  active_bluetooth_game >/dev/null 2>&1 || { echo 0; return; }
+  logcat -d -t 180 2>/dev/null | grep -iE 'gatt.*(133|257|timeout|busy|congested)|bt_stack.*(timeout|hci|acl|l2cap)|bluetooth.*(binder died|dead object|gattservice)|scan.*(failed|stopped|throttle)|location.*(stale|timeout|throttle)|pokemod|vpgp|go plus' >/dev/null 2>&1 && echo 20 || echo 0
+}
+bluetooth_health_score() {
+  score=100
+  [ "$(bt_enabled_setting)" = 1 ] || score=$((score-35))
+  [ "$(bt_process_count)" -gt 0 ] || score=$((score-25))
+  health_bad_state && score=$((score-20))
+  penalty=$(recent_bt_stall_score_penalty); score=$((score-penalty))
+  active_bluetooth_game >/dev/null 2>&1 && [ "$penalty" -gt 0 ] && score=$((score-10))
+  [ "$score" -lt 0 ] && score=0
+  echo "$score"
+}
+export_bluetooth_health_score() {
+  [ "${ENABLE_BLUETOOTH_HEALTH_SCORE:-1}" = 1 ] || return 0
+  metrics_dir="${CONFIG_DIR:-/sdcard/Bluetooth-Stability-Helper}/metrics"; mkdir -p "$metrics_dir"
+  score=$(bluetooth_health_score)
+  cat > "$metrics_dir/bluetooth-health.json" <<EOF
+{
+  "timestamp": "$(date '+%F %T')",
+  "score": $score,
+  "device": "$(getprop ro.product.brand 2>/dev/null) $(getprop ro.product.model 2>/dev/null)",
+  "sdk": "$(sdk_int)",
+  "android": "$(getprop ro.build.version.release 2>/dev/null)",
+  "build_id": "$(build_id)",
+  "security_patch": "$(security_patch)",
+  "active_pokemon_go": "$(active_pokemon_go 2>/dev/null)",
+  "active_pokemod_vpgp3": "$(active_pokemod 2>/dev/null)",
+  "bt_enabled_setting": "$(bt_enabled_setting)",
+  "bt_process_count": "$(bt_process_count)"
+}
+EOF
+  echo "$score"
+}
 check_android_support() { [ "$ENABLE_ANDROID_VERSION_WARNINGS" = 1 ] || return; sdk=$(sdk_int); [ -z "$sdk" ] && return; if [ "$sdk" -lt "$SUPPORTED_SDK_MIN" ] || [ "$sdk" -gt "$SUPPORTED_SDK_MAX" ]; then log "Android SDK warning: sdk=$sdk outside tested range $SUPPORTED_SDK_MIN-$SUPPORTED_SDK_MAX"; fi; }
 apply_device_profile() {
   [ "$ENABLE_SDK_AWARE_TUNING" = 1 ] || return
