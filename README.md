@@ -19,6 +19,28 @@ It is especially useful when Bluetooth-heavy apps are active, including **Pokém
 - Recovery history and health metrics stored under `/sdcard/Bluetooth-Stability-Helper/`.
 - Vector/LSPosed safe: no app hooks, Zygisk hooks, or Xposed modules are installed.
 
+
+## Logging safety
+
+v1.0.2 switches to capped, event-based logging so the helper does not fill phone storage.
+
+- Old logs and exports are cleaned on reboot.
+- Routine keepalive/healthy-loop messages are suppressed by default.
+- The active log rotates at 256 KB and keeps only a small number of rotated files.
+- Exported diagnostics and Pixel snapshots are capped.
+- Recovery history is trimmed automatically.
+
+Useful overrides in `/sdcard/Bluetooth-Stability-Helper/user-config.sh`:
+
+```sh
+LOG_IMPORTANT_ONLY=1
+LOG_BOOT_CLEAN=1
+LOG_ROTATE_SIZE_KB=256
+LOG_MAX_TOTAL_MB=10
+EXPORT_MAX_FILES=8
+RUN_DIAGNOSTICS_ON_BOOT=0
+```
+
 ## Runtime files
 
 ```text

@@ -9,7 +9,7 @@ mkdir -p "$EXPORT_DIR" "$LOG_DIR" "$CONFIG_DIR" "$STATE_DIR"
 {
  echo "Bluetooth Stability Helper adaptive Bluetooth diagnostics"
  echo "Timestamp: $(date '+%F %T')"
- echo "Version: 1.0.1"
+ echo "Version: 1.0.2"
 echo "Build ID: $(getprop ro.build.id 2>/dev/null)"
 echo "Fingerprint: $(getprop ro.build.fingerprint 2>/dev/null)"
  echo "Profile: adaptive Bluetooth stability engine"
@@ -68,11 +68,11 @@ echo "Role/permission related state:"
 dumpsys role 2>/dev/null | head -120
 echo
 echo "Recent Bluetooth/location/VPGP³+/game logs:"
- logcat -d -t 260 2>/dev/null | grep -iE "bluetooth|bt_stack|a2dp|gatt|ble|adapter|hci|companion|cdm|nearby|permission|rpa|privacy|location|gnss|fused|go plus|pokemod|vpgp|lmkd|audio focus" | tail -n 110
+ logcat -d -t ${LOGCAT_CAPTURE_WINDOW_SECONDS:-180} 2>/dev/null | grep -iE "bluetooth|bt_stack|a2dp|gatt|ble|adapter|hci|companion|cdm|nearby|permission|rpa|privacy|location|gnss|fused|go plus|pokemod|vpgp|lmkd|audio focus" | tail -n ${LOGCAT_CAPTURE_LINES:-80}
 } > "$OUT"
 cp "$OUT" "$LOCAL_STATUS_FILE" 2>/dev/null
-tail -n 160 "$LOG_DIR/bt-stability.log" > "$EXPORT_DIR/log-tail.txt" 2>/dev/null
+tail -n 80 "$LOG_DIR/bt-stability.log" > "$EXPORT_DIR/log-tail.txt" 2>/dev/null
 cp "$LOCAL_USER_CONFIG" "$EXPORT_DIR/user-config.sh" 2>/dev/null
 
 cp "$CONFIG_DIR/metrics/bluetooth-health.json" "$EXPORT_DIR/bluetooth-health.json" 2>/dev/null
-tail -n 80 "$CONFIG_DIR/metrics/recovery-history.jsonl" > "$EXPORT_DIR/recovery-history.jsonl" 2>/dev/null
+tail -n 60 "$CONFIG_DIR/metrics/recovery-history.jsonl" > "$EXPORT_DIR/recovery-history.jsonl" 2>/dev/null

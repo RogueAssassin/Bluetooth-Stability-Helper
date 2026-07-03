@@ -3,7 +3,71 @@ MODDIR=${MODDIR:-${0%/*}/..}
 LOG="${LOG:-/sdcard/Bluetooth-Stability-Helper/logs/bt-stability.log}"
 STATE_DIR="${STATE_DIR:-/sdcard/Bluetooth-Stability-Helper/state}"
 mkdir -p "$STATE_DIR"
-log() { echo "$(date '+%F %T')  $1" >> "$LOG"; }
+
+_log_should_keep() {
+  msg="$1"
+  [ "${LOG_IMPORTANT_ONLY:-1}" != "1" ] && return 0
+  echo "$msg" | grep -qiE 'start|boot|clean|guard active|warning|error|fail|failure|recover|recovery|restart|skipped|stale|stall|freeze|crash|binder died|dead object|gatt|hci|bond|encryption|permission|location warning|bluetooth enabled but no|did not report|health score: ([0-6][0-9]|70)|snapshot|exported|max|storage|rotat|prun|cleanup|Pokémon GO running|not detected' && return 0
+  return 1
+}
+
+_log_dedup_ok() {
+  msg="$1"
+  dedup="${LOG_DEDUP_SECONDS:-300}"
+  [ "$dedup" = "0" ] && return 0
+  key=$(echo "$msg" | tr -cd '[:alnum:] _.-' | cut -c1-80 | tr ' /' '__')
+  [ -z "$key" ] && key=message
+  f="$STATE_DIR/logdedup_$key"
+  now=$(date +%s)
+  last=$(cat "$f" 2>/dev/null)
+  if [ -n "$last" ] && [ $((now-last)) -lt "$dedup" ]; then return 1; fi
+  echo "$now" > "$f" 2>/dev/null
+  return 0
+}
+
+log_rotate_enforce() {
+  [ -n "$LOG" ] || return 0
+  mkdir -p "$(dirname "$LOG")" "$STATE_DIR" 2>/dev/null
+  [ -f "$LOG" ] || return 0
+  size_kb=$(du -k "$LOG" 2>/dev/null | awk '{print $1}')
+  [ -z "$size_kb" ] && return 0
+  if [ "$size_kb" -gt "${LOG_ROTATE_SIZE_KB:-256}" ]; then
+    keep="${LOG_KEEP_ROTATED_COUNT:-2}"
+    i="$keep"
+    while [ "$i" -ge 1 ]; do
+      prev=$((i-1))
+      [ "$prev" -eq 0 ] && src="$LOG" || src="$LOG.$prev"
+      dst="$LOG.$i"
+      [ -f "$src" ] && mv "$src" "$dst" 2>/dev/null
+      i=$((i-1))
+    done
+    : > "$LOG"
+  fi
+}
+
+log_storage_guard() {
+  dir=$(dirname "$LOG")
+  [ -d "$dir" ] || return 0
+  max_kb=$(( ${LOG_MAX_TOTAL_MB:-10} * 1024 ))
+  total=$(du -sk "$dir" 2>/dev/null | awk '{print $1}')
+  [ -z "$total" ] && return 0
+  [ "$total" -le "$max_kb" ] && return 0
+  # Keep the newest small active log and remove old rotated/exported log files first.
+  find "$dir" -type f ! -name 'bt-stability.log' -delete 2>/dev/null
+  : > "$LOG" 2>/dev/null
+  echo "$(date '+%F %T')  Log storage guard trimmed logs after exceeding ${LOG_MAX_TOTAL_MB:-10}MB" >> "$LOG"
+}
+
+log() {
+  msg="$1"
+  _log_should_keep "$msg" || return 0
+  _log_dedup_ok "$msg" || return 0
+  mkdir -p "$(dirname "$LOG")" "$STATE_DIR" 2>/dev/null
+  log_rotate_enforce
+  echo "$(date '+%F %T')  $msg" >> "$LOG"
+  log_storage_guard
+}
+
 package_running() { pkg="$1"; [ -n "$pkg" ] || return 1; pidof "$pkg" >/dev/null 2>&1 && return 0; ps -A 2>/dev/null | awk '{print $9}' | grep -qx "$pkg" && return 0; ps 2>/dev/null | awk '{print $9}' | grep -qx "$pkg" && return 0; return 1; }
 package_installed() { pkg="$1"; [ -n "$pkg" ] || return 1; cmd package path "$pkg" >/dev/null 2>&1 || pm path "$pkg" >/dev/null 2>&1; }
 first_installed_from_list() { for pkg in $1; do package_installed "$pkg" && { echo "$pkg"; return 0; }; done; return 1; }

@@ -1,13 +1,25 @@
 #!/system/bin/sh
-# Bluetooth Stability Helper v1.0.1 defaults.
+# Bluetooth Stability Helper v1.0.2 defaults.
 # Override in /sdcard/Bluetooth-Stability-Helper/user-config.sh
 # Design goal: one adaptive Bluetooth stability engine, Pixel-first, Pokémon GO/Pokemod aware.
-# v1.0.1 formalises the Pixel-first adaptive engine, monthly firmware awareness, and name-only Pokémon GO/Pokemod/VPGP³+ support without app-version lock-in.
+# v1.0.2 adds capped event logging, boot log cleanup, and safer diagnostics while retaining the Pixel-first adaptive engine, monthly firmware awareness, and name-only Pokémon GO/Pokemod/VPGP³+ support without app-version lock-in.
 
 ENGINE_PROFILE="adaptive"
 WATCHDOG_ENABLED=1
 WATCHDOG_INTERVAL=25
-LOG_ROTATE_SIZE_KB=1024
+# Logging safety. Keep the phone storage clean and avoid performance issues from runaway logs.
+# Logs are event-based by default, cleared on boot, rotated aggressively, and capped.
+LOG_IMPORTANT_ONLY=1
+LOG_DEDUP_SECONDS=300
+LOG_BOOT_CLEAN=1
+LOG_ROTATE_SIZE_KB=256
+LOG_KEEP_ROTATED_COUNT=2
+LOG_MAX_TOTAL_MB=10
+EXPORT_MAX_FILES=8
+METRICS_MAX_KB=512
+SNAPSHOT_MAX_FILES=4
+LOGCAT_CAPTURE_LINES=80
+LOGCAT_CAPTURE_WINDOW_SECONDS=180
 MAX_RESTARTS_PER_HOUR=4
 FAILURE_THRESHOLD=2
 RECOVERY_COOLDOWN=150

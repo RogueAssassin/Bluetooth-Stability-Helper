@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.0.2
+
+- Fixed runaway logging that could grow into multi-GB storage usage.
+- Added boot cleanup for old logs and diagnostics exports.
+- Added event-based logging so normal healthy watchdog loops stay quiet.
+- Added aggressive log rotation and total log-folder storage cap.
+- Capped diagnostics exports, Pixel connectivity snapshots, and recovery history.
+- Disabled boot diagnostics export by default; diagnostics still export on important stalls/recoveries.
+- Kept Pixel-first Android 12–17 Bluetooth stability engine, Pokémon GO, Pokemod, and VPGP³+ support.
+
 ## v1.0.1
 
 - Promoted the project to the standard adaptive Bluetooth stability engine.

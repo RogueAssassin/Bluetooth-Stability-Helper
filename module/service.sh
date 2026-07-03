@@ -23,7 +23,35 @@ mkdir -p "$STATE_DIR" "$CONFIG_DIR" "$CONFIG_DIR/logs" "$EXPORT_DIR" "$CONFIG_DI
 [ -f "$USERCFG" ] && . "$USERCFG"
 . "$MODDIR/scripts/lib.sh"
 
-rotate_log_if_needed() { [ -f "$LOG" ] || return; size_kb=$(du -k "$LOG" | awk '{print $1}'); [ "$size_kb" -gt "$LOG_ROTATE_SIZE_KB" ] && mv "$LOG" "$LOG.1" 2>/dev/null && touch "$LOG"; }
+rotate_log_if_needed() { log_rotate_enforce 2>/dev/null; log_storage_guard 2>/dev/null; }
+
+cleanup_boot_logs() {
+  [ "${LOG_BOOT_CLEAN:-1}" = "1" ] || return 0
+  mkdir -p "$CONFIG_DIR/logs" "$EXPORT_DIR" "$CONFIG_DIR/metrics" "$STATE_DIR"
+  find "$CONFIG_DIR/logs" -type f -delete 2>/dev/null
+  find "$EXPORT_DIR" -type f -delete 2>/dev/null
+  find "$STATE_DIR" -type f -name 'logdedup_*' -delete 2>/dev/null
+  : > "$RECOVERY_HISTORY_FILE" 2>/dev/null
+  : > "$CONFIG_DIR/metrics/bluetooth-health.json" 2>/dev/null
+  echo "$(date '+%F %T')  Boot cleanup completed: old logs/exports removed" > "$LOG"
+}
+
+cap_runtime_files() {
+  # Keep exported diagnostics and snapshots bounded; these are the files that can grow fast.
+  if [ -d "$EXPORT_DIR" ]; then
+    keep=${EXPORT_MAX_FILES:-8}; count=0
+    for f in $(ls -1t "$EXPORT_DIR" 2>/dev/null); do
+      count=$((count+1)); [ "$count" -le "$keep" ] && continue
+      rm -f "$EXPORT_DIR/$f" 2>/dev/null
+    done
+    keep_snap=${SNAPSHOT_MAX_FILES:-4}; count=0
+    for f in $(ls -1t "$EXPORT_DIR"/pixel-connectivity-*.txt 2>/dev/null); do
+      count=$((count+1)); [ "$count" -le "$keep_snap" ] && continue
+      rm -f "$f" 2>/dev/null
+    done
+  fi
+  [ -d "$CONFIG_DIR/metrics" ] && find "$CONFIG_DIR/metrics" -type f -size +${METRICS_MAX_KB:-512}k -exec sh -c ': > "$1"' _ {} \; 2>/dev/null
+}
 wait_until_boot_complete() { until [ "$(getprop sys.boot_completed)" = "1" ]; do sleep 5; done; sleep 25; }
 ensure_files() { mkdir -p "$STATE_DIR" "$EXPORT_DIR" "$CONFIG_DIR/logs" "$CONFIG_DIR/import" "$CONFIG_DIR/metrics"; [ -f "$USERCFG" ] || cat > "$USERCFG" <<'EOF'
 # Bluetooth Stability Helper local overrides.
@@ -149,17 +177,17 @@ pixel_connectivity_snapshot() {
     echo "Build: $(getprop ro.build.id) / $(getprop ro.build.fingerprint)"
     echo "SDK: $(getprop ro.build.version.sdk)"
     echo
-    echo "--- bluetooth_manager ---"; dumpsys bluetooth_manager 2>/dev/null
+    echo "--- bluetooth_manager summary ---"; dumpsys bluetooth_manager 2>/dev/null | head -220
     echo
     echo "--- bluetooth_manager proto size check ---"; dumpsys bluetooth_manager --proto 2>/dev/null | wc -c
     echo
-    echo "--- companiondevice ---"; dumpsys companiondevice 2>/dev/null
+    echo "--- companiondevice summary ---"; dumpsys companiondevice 2>/dev/null | head -180
     echo
-    echo "--- location ---"; dumpsys location 2>/dev/null
+    echo "--- location summary ---"; dumpsys location 2>/dev/null | head -220
     echo
-    echo "--- thermalservice ---"; dumpsys thermalservice 2>/dev/null
+    echo "--- thermalservice summary ---"; dumpsys thermalservice 2>/dev/null | head -120
     echo
-    echo "--- recent bt/log patterns ---"; logcat -d -t 360 2>/dev/null | grep -iE 'bluetooth|bt_stack|gatt|hci|l2cap|companion|cdm|bond|encryption|nearby|permission|rpa|privacy|niantic|pokemod|vpgp|location|fused|lmkd|audio focus' | tail -260
+    echo "--- recent bt/log patterns ---"; logcat -d -t ${LOGCAT_CAPTURE_WINDOW_SECONDS:-180} 2>/dev/null | grep -iE 'bluetooth|bt_stack|gatt|hci|l2cap|companion|cdm|bond|encryption|nearby|permission|rpa|privacy|niantic|pokemod|vpgp|location|fused|lmkd|audio focus' | tail -n ${LOGCAT_CAPTURE_LINES:-80}
   } > "$out" 2>/dev/null
   log "Pixel connectivity snapshot exported: $out"
 }
@@ -168,7 +196,7 @@ android16_connectivity_change_patterns() {
   [ "$ENABLE_ANDROID16_BOND_LOSS_OBSERVE" = 1 ] || return 1
   [ "$(sdk_int)" -ge "$ANDROID16_SDK" ] || return 1
   active_bluetooth_game >/dev/null 2>&1 || return 1
-  logcat -d -t 360 2>/dev/null | grep -iE 'bond.*(loss|lost|none|removed)|encryption.*(change|failed|lost)|companion.*(presence|unbound|disconnected|timeout)|cdm.*(presence|unbound)|bluetooth.*(bond|encryption)' >/dev/null 2>&1 || return 1
+  logcat -d -t ${LOGCAT_CAPTURE_WINDOW_SECONDS:-180} 2>/dev/null | grep -iE 'bond.*(loss|lost|none|removed)|encryption.*(change|failed|lost)|companion.*(presence|unbound|disconnected|timeout)|cdm.*(presence|unbound)|bluetooth.*(bond|encryption)' >/dev/null 2>&1 || return 1
   log "Android 16 connectivity observer matched bond/encryption/companion-device change pattern"
   pixel_connectivity_snapshot
   return 0
@@ -180,7 +208,7 @@ android17_connectivity_change_patterns() {
   active_bluetooth_game >/dev/null 2>&1 || return 1
   # Android 17 adds Companion Device Manager permission/profile changes and tighter background/audio behaviour.
   # We observe related CDM/permission/BLE privacy/memory-pressure signals and trigger a safe BT refresh only after the normal failure ladder.
-  logcat -d -t 420 2>/dev/null | grep -iE 'companion.*(permission|association|profile|presence|nearby|timeout|disconnected|unbound)|cdm.*(permission|association|profile|presence|nearby|timeout)|bluetooth.*(privacy|address|random|rpa|permission|nearby|scan.*denied)|gatt.*(133|257|timeout|busy|congested|callback|dead)|background audio|audio focus.*denied|low memory|lmkd.*(niantic|pokemod|bluetooth|gms)' >/dev/null 2>&1 || return 1
+  logcat -d -t ${LOGCAT_CAPTURE_WINDOW_SECONDS:-180} 2>/dev/null | grep -iE 'companion.*(permission|association|profile|presence|nearby|timeout|disconnected|unbound)|cdm.*(permission|association|profile|presence|nearby|timeout)|bluetooth.*(privacy|address|random|rpa|permission|nearby|scan.*denied)|gatt.*(133|257|timeout|busy|congested|callback|dead)|background audio|audio focus.*denied|low memory|lmkd.*(niantic|pokemod|bluetooth|gms)' >/dev/null 2>&1 || return 1
   log "Android 17 connectivity observer matched CDM/permission/BLE/privacy/memory-pressure pattern"
   pixel_connectivity_snapshot
   return 0
@@ -207,7 +235,7 @@ reset_interaction_freeze_count() { echo 0 > "$INTERACTION_FREEZE_FILE"; }
 scan_stall_patterns() {
   [ "$ENABLE_GO_PLUS_STALL_PATTERNS" = 1 ] || return 1
   active_bluetooth_game >/dev/null 2>&1 || return 1
-  logcat -d -t 260 2>/dev/null | grep -iE 'gatt.*(133|257|timeout|disconnect|dead|busy)|go plus.*(disconnect|timeout|stale)|vpgp|vpgp3|ble.*(scan.*failed|stopped|timeout)|location.*(stale|throttle)|fused.*stale|bt_stack.*(hci|timeout)|bluetooth.*(crash|dead object|binder died)' >/dev/null 2>&1 || return 1
+  logcat -d -t ${LOGCAT_CAPTURE_WINDOW_SECONDS:-180} 2>/dev/null | grep -iE 'gatt.*(133|257|timeout|disconnect|dead|busy)|go plus.*(disconnect|timeout|stale)|vpgp|vpgp3|ble.*(scan.*failed|stopped|timeout)|location.*(stale|throttle)|fused.*stale|bt_stack.*(hci|timeout)|bluetooth.*(crash|dead object|binder died)' >/dev/null 2>&1 || return 1
   log "Recent logs contain BLE/GATT/location stall pattern while a Bluetooth-aware game is active"
   [ "$POKEMONPLUS_AUTO_EXPORT_ON_STALL" = 1 ] && MODDIR="$MODDIR" sh "$MODDIR/scripts/diagnostics.sh" >/dev/null 2>&1
   return 0
@@ -283,7 +311,7 @@ write_status() {
   sdk=$(sdk_int); model=$(getprop ro.product.model 2>/dev/null); brand=$(getprop ro.product.brand 2>/dev/null)
   go=$(active_pokemon_go); pm=$(active_pokemod); game=$(active_bluetooth_game)
   cat > "$LOCAL_STATUS_FILE" <<EOF
-Bluetooth Stability Helper v1.0.1
+Bluetooth Stability Helper v1.0.2
 Profile: adaptive
 Build ID: $(build_id)
 Device: $brand $model SDK=$sdk
@@ -302,7 +330,7 @@ EOF
 
 main_loop() {
   while true; do
-    rotate_log_if_needed; cleanup_restart_history; ensure_files
+    rotate_log_if_needed; cleanup_restart_history; cap_runtime_files; ensure_files
     . "$MODDIR/common/config.sh"; [ -f "$USERCFG" ] && . "$USERCFG"; . "$MODDIR/scripts/lib.sh"; apply_adaptive_defaults
     bad=0
     if [ "$WATCHDOG_ENABLED" = 1 ]; then
@@ -329,8 +357,9 @@ main_loop() {
 
 wait_until_boot_complete
 ensure_files
-log "Bluetooth Stability Helper 1.0.1 adaptive engine start"
+cleanup_boot_logs
+log "Bluetooth Stability Helper 1.0.2 adaptive engine start"
 apply_adaptive_defaults
 apply_static_tuning
-MODDIR="$MODDIR" sh "$MODDIR/scripts/diagnostics.sh" >/dev/null 2>&1
+[ "${RUN_DIAGNOSTICS_ON_BOOT:-0}" = "1" ] && MODDIR="$MODDIR" sh "$MODDIR/scripts/diagnostics.sh" >/dev/null 2>&1
 main_loop
