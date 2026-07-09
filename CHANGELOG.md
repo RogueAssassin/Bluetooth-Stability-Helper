@@ -1,6 +1,12 @@
 # Changelog
 
-## v1.0.2
+## v1.0.3
+- Added Pixel Android 17 July 2026 CP2A.260705 build-family awareness.
+- Recognises CP2A.260705.006 / CP2A.260705.006.A1 as current Android 17 July Pixel firmware.
+- Leaves the v1.0.2 capped/event-based log system unchanged.
+- No aggressive Bluetooth behaviour changes required for this patch.
+
+## v1.0.3
 
 - Fixed runaway logging that could grow into multi-GB storage usage.
 - Added boot cleanup for old logs and diagnostics exports.

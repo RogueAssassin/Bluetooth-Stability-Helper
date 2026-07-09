@@ -1,8 +1,8 @@
 #!/system/bin/sh
-# Bluetooth Stability Helper v1.0.2 defaults.
+# Bluetooth Stability Helper v1.0.3 defaults.
 # Override in /sdcard/Bluetooth-Stability-Helper/user-config.sh
 # Design goal: one adaptive Bluetooth stability engine, Pixel-first, Pokémon GO/Pokemod aware.
-# v1.0.2 adds capped event logging, boot log cleanup, and safer diagnostics while retaining the Pixel-first adaptive engine, monthly firmware awareness, and name-only Pokémon GO/Pokemod/VPGP³+ support without app-version lock-in.
+# v1.0.3 keeps v1.0.2 capped event logging unchanged and adds Pixel Android 17 July 2026 CP2A patch-family awareness while retaining the Pixel-first adaptive engine and name-only Pokémon GO/Pokemod/VPGP³+ support.
 
 ENGINE_PROFILE="adaptive"
 WATCHDOG_ENABLED=1
@@ -54,7 +54,10 @@ ENABLE_ANDROID16_GMS_GUARD=1
 # Google Android 17 beta factory images use CP21.260330.011 build family.
 # Stable Pixel Android 17 builds can vary by device/region, so detection is SDK-first
 # with CP21/Android 17 build-family awareness instead of one hard-coded build only.
-PIXEL_ANDROID17_KNOWN_BUILD_PREFIXES="CP21 AP3A BP3A"
+PIXEL_ANDROID17_KNOWN_BUILD_PREFIXES="CP21 CP2A AP3A BP3A"
+PIXEL_ANDROID17_JULY2026_BUILD="CP2A.260705.006"
+PIXEL_ANDROID17_JULY2026_BUILD_PREFIX="CP2A.260705"
+ENABLE_PIXEL_ANDROID17_JULY2026_CP2A_AWARENESS=1
 ENABLE_PIXEL_ANDROID17_GUARD=1
 ENABLE_ANDROID17_COMPANION_PERMISSION_OBSERVE=1
 ENABLE_ANDROID17_BG_AUDIO_GUARD=1

@@ -22,7 +22,7 @@ It is especially useful when Bluetooth-heavy apps are active, including **Pokém
 
 ## Logging safety
 
-v1.0.2 switches to capped, event-based logging so the helper does not fill phone storage.
+v1.0.3 switches to capped, event-based logging so the helper does not fill phone storage.
 
 - Old logs and exports are cleaned on reboot.
 - Routine keepalive/healthy-loop messages are suppressed by default.
@@ -104,3 +104,8 @@ MAX_RESTARTS_PER_HOUR=4
 - `assets/logo.png` — current README logo.
 - `assets/promo.png` — full promo graphic.
 - `assets/banner.png` — wide banner graphic.
+
+
+## Current Pixel patch awareness
+
+This release recognises Android 17 July 2026 Pixel build family `CP2A.260705`, including `CP2A.260705.006` and `.A1` regional variants.

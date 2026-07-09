@@ -6,7 +6,7 @@ LATESTARTSERVICE=true
 print_modname() {
   ui_print "*******************************"
   ui_print " Bluetooth Stability Helper    "
-  ui_print " v1.0.2 Adaptive Engine        "
+  ui_print " v1.0.3 Adaptive Engine        "
   ui_print "*******************************"
   ui_print "Pixel-first Android 12-17 BT/BLE stabiliser."
   ui_print "Pokémon GO + Pokemod VPGP³+ aware."

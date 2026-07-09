@@ -9,7 +9,7 @@ mkdir -p "$EXPORT_DIR" "$LOG_DIR" "$CONFIG_DIR" "$STATE_DIR"
 {
  echo "Bluetooth Stability Helper adaptive Bluetooth diagnostics"
  echo "Timestamp: $(date '+%F %T')"
- echo "Version: 1.0.2"
+ echo "Version: 1.0.3"
 echo "Build ID: $(getprop ro.build.id 2>/dev/null)"
 echo "Fingerprint: $(getprop ro.build.fingerprint 2>/dev/null)"
  echo "Profile: adaptive Bluetooth stability engine"
