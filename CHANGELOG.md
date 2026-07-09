@@ -1,12 +1,20 @@
 # Changelog
 
+## v1.0.4 - Magisk updater metadata fix
+
+- Bumped module to v1.0.4 / versionCode 1004.
+- Fixed update manifest versionCode consistency so Magisk can detect updates correctly.
+- Added workflow validation for module.prop, update.json, release tag, and release ZIP naming.
+- No runtime Bluetooth or log-system changes.
+
 ## v1.0.3
+
 - Added Pixel Android 17 July 2026 CP2A.260705 build-family awareness.
 - Recognises CP2A.260705.006 / CP2A.260705.006.A1 as current Android 17 July Pixel firmware.
 - Leaves the v1.0.2 capped/event-based log system unchanged.
 - No aggressive Bluetooth behaviour changes required for this patch.
 
-## v1.0.3
+## v1.0.2
 
 - Fixed runaway logging that could grow into multi-GB storage usage.
 - Added boot cleanup for old logs and diagnostics exports.

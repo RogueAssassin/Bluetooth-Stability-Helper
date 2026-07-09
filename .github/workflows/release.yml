@@ -27,6 +27,27 @@ jobs:
           echo "version_code=${VERSION_CODE}" >> "$GITHUB_OUTPUT"
           echo "zip_name=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
 
+      - name: Verify update manifest matches module metadata
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          props = {}
+          for line in Path('module/module.prop').read_text().splitlines():
+              if '=' in line and not line.strip().startswith('#'):
+                  k, v = line.split('=', 1)
+                  props[k.strip()] = v.strip()
+          manifest = json.loads(Path('update.json').read_text())
+          version = props['version']
+          version_code = int(props['versionCode'])
+          expected_zip = f'https://github.com/RogueAssassin/Bluetooth-Stability-Helper/releases/download/v{version}/bt-stability-helper-v{version}.zip'
+          assert manifest['version'] == version, f"update.json version {manifest['version']} != module.prop {version}"
+          assert int(manifest['versionCode']) == version_code, f"update.json versionCode {manifest['versionCode']} != module.prop {version_code}"
+          assert manifest['zipUrl'] == expected_zip, f"update.json zipUrl mismatch: {manifest['zipUrl']} != {expected_zip}"
+          assert 'updateJson=' in Path('module/module.prop').read_text(), 'module.prop missing updateJson'
+          PY
+
       - name: Verify tag matches module version
         if: startsWith(github.ref, 'refs/tags/')
         shell: bash
@@ -51,6 +72,9 @@ jobs:
           unzip -l "${{ steps.version.outputs.zip_name }}" | grep -q 'module.prop'
           unzip -l "${{ steps.version.outputs.zip_name }}" | grep -q 'service.sh'
           unzip -l "${{ steps.version.outputs.zip_name }}" | grep -q 'customize.sh'
+          unzip -p "${{ steps.version.outputs.zip_name }}" module.prop | grep -q '^version=${{ steps.version.outputs.version }}$'
+          unzip -p "${{ steps.version.outputs.zip_name }}" module.prop | grep -q '^versionCode=${{ steps.version.outputs.version_code }}$'
+          unzip -p "${{ steps.version.outputs.zip_name }}" module.prop | grep -q '^updateJson='
 
       - name: Create or update GitHub Release
         uses: softprops/action-gh-release@v2

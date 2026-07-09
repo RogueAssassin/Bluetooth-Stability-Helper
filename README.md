@@ -22,7 +22,7 @@ It is especially useful when Bluetooth-heavy apps are active, including **Pokém
 
 ## Logging safety
 
-v1.0.3 switches to capped, event-based logging so the helper does not fill phone storage.
+v1.0.4 switches to capped, event-based logging so the helper does not fill phone storage.
 
 - Old logs and exports are cleaned on reboot.
 - Routine keepalive/healthy-loop messages are suppressed by default.

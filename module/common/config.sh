@@ -1,8 +1,8 @@
 #!/system/bin/sh
-# Bluetooth Stability Helper v1.0.3 defaults.
+# Bluetooth Stability Helper v1.0.4 defaults.
 # Override in /sdcard/Bluetooth-Stability-Helper/user-config.sh
 # Design goal: one adaptive Bluetooth stability engine, Pixel-first, Pokémon GO/Pokemod aware.
-# v1.0.3 keeps v1.0.2 capped event logging unchanged and adds Pixel Android 17 July 2026 CP2A patch-family awareness while retaining the Pixel-first adaptive engine and name-only Pokémon GO/Pokemod/VPGP³+ support.
+# v1.0.4 keeps v1.0.2 capped event logging unchanged and adds Pixel Android 17 July 2026 CP2A patch-family awareness while retaining the Pixel-first adaptive engine and name-only Pokémon GO/Pokemod/VPGP³+ support.
 
 ENGINE_PROFILE="adaptive"
 WATCHDOG_ENABLED=1

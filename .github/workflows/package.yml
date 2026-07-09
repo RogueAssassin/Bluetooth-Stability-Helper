@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - 'module/**'
+      - 'update.json'
       - '.github/workflows/package.yml'
 
 jobs:
@@ -21,8 +22,30 @@ jobs:
         shell: bash
         run: |
           VERSION=$(grep '^version=' module/module.prop | cut -d= -f2)
+          VERSION_CODE=$(grep '^versionCode=' module/module.prop | cut -d= -f2)
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "version_code=${VERSION_CODE}" >> "$GITHUB_OUTPUT"
           echo "zip_name=bt-stability-helper-v${VERSION}.zip" >> "$GITHUB_OUTPUT"
+
+      - name: Verify update manifest matches module metadata
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          props = {}
+          for line in Path('module/module.prop').read_text().splitlines():
+              if '=' in line and not line.strip().startswith('#'):
+                  k, v = line.split('=', 1)
+                  props[k.strip()] = v.strip()
+          manifest = json.loads(Path('update.json').read_text())
+          version = props['version']
+          version_code = int(props['versionCode'])
+          expected_zip = f'https://github.com/RogueAssassin/Bluetooth-Stability-Helper/releases/download/v{version}/bt-stability-helper-v{version}.zip'
+          assert manifest['version'] == version, f"update.json version {manifest['version']} != module.prop {version}"
+          assert int(manifest['versionCode']) == version_code, f"update.json versionCode {manifest['versionCode']} != module.prop {version_code}"
+          assert manifest['zipUrl'] == expected_zip, f"update.json zipUrl mismatch: {manifest['zipUrl']} != {expected_zip}"
+          PY
 
       - name: Create Magisk install zip
         shell: bash
@@ -36,6 +59,9 @@ jobs:
           unzip -l "${{ steps.version.outputs.zip_name }}" | grep -q 'module.prop'
           unzip -l "${{ steps.version.outputs.zip_name }}" | grep -q 'service.sh'
           unzip -l "${{ steps.version.outputs.zip_name }}" | grep -q 'customize.sh'
+          unzip -p "${{ steps.version.outputs.zip_name }}" module.prop | grep -q '^version=${{ steps.version.outputs.version }}$'
+          unzip -p "${{ steps.version.outputs.zip_name }}" module.prop | grep -q '^versionCode=${{ steps.version.outputs.version_code }}$'
+          unzip -p "${{ steps.version.outputs.zip_name }}" module.prop | grep -q '^updateJson='
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
