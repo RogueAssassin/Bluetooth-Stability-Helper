@@ -47,6 +47,14 @@ jobs:
           assert manifest['zipUrl'] == expected_zip, f"update.json zipUrl mismatch: {manifest['zipUrl']} != {expected_zip}"
           PY
 
+      - name: Validate shell scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            bash -n "$file"
+          done < <(find module -type f -name '*.sh' -print0)
+
       - name: Create Magisk install zip
         shell: bash
         run: |

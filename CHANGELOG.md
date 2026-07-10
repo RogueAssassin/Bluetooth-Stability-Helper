@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.5
+- Added detailed install-time device, Android, root-manager, architecture, SELinux, build and OEM-profile reporting.
+- Added installer payload validation before the root manager finalises installation.
+- Added a standalone non-destructive `verify.sh` compatibility self-check.
+- Added disabled/removal state guards and duplicate service-instance protection.
+- Strengthened GitHub Actions validation and added release checksums.
+- Preserved all Bluetooth recovery behaviour and the existing capped log system.
+- No Play Integrity, spoofing, Zygisk injection, app hiding or device-identity features were added.
+
 ## v1.0.4 - Magisk updater metadata fix
 
 - Bumped module to v1.0.4 / versionCode 1004.

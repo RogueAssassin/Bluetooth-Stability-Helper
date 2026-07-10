@@ -22,7 +22,7 @@ It is especially useful when Bluetooth-heavy apps are active, including **Pokém
 
 ## Logging safety
 
-v1.0.4 switches to capped, event-based logging so the helper does not fill phone storage.
+v1.0.5 switches to capped, event-based logging so the helper does not fill phone storage.
 
 - Old logs and exports are cleaned on reboot.
 - Routine keepalive/healthy-loop messages are suppressed by default.
@@ -109,3 +109,9 @@ MAX_RESTARTS_PER_HOUR=4
 ## Current Pixel patch awareness
 
 This release recognises Android 17 July 2026 Pixel build family `CP2A.260705`, including `CP2A.260705.006` and `.A1` regional variants.
+
+## Compatibility and installation safety
+
+The installer reports the detected Android version, build, device manufacturer, architecture, SELinux state, root manager, and selected OEM profile before installation. It validates the required module payload and includes a non-destructive `verify.sh` self-check. These safeguards improve support across Magisk, KernelSU and APatch-style environments without changing the module’s Bluetooth stability purpose.
+
+The project does **not** include Play Integrity spoofing, keybox management, Zygisk injection, app hiding, device fingerprint modification, or changes to LSPosed/Vector.

@@ -1,7 +1,7 @@
 id=btstabilityhelper
 name=Bluetooth Stability Helper PRO
-version=1.0.4
-versionCode=1004
+version=1.0.5
+versionCode=1005
 author=RogueAssassin
 description=Pixel-first Adaptive Bluetooth Stability Engine for Android 12-17, focused on Bluetooth/BLE/GATT health, monthly firmware readiness, Pokémon GO, Pokemod.dev, VPGP³+, diagnostics, event-based capped sdcard logging, boot cleanup, and Magisk GitHub auto-updates
 updateJson=https://raw.githubusercontent.com/RogueAssassin/Bluetooth-Stability-Helper/main/update.json

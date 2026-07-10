@@ -59,6 +59,14 @@ jobs:
             exit 1
           fi
 
+      - name: Validate shell scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            bash -n "$file"
+          done < <(find module -type f -name '*.sh' -print0)
+
       - name: Build Magisk install zip
         shell: bash
         run: |
@@ -76,12 +84,18 @@ jobs:
           unzip -p "${{ steps.version.outputs.zip_name }}" module.prop | grep -q '^versionCode=${{ steps.version.outputs.version_code }}$'
           unzip -p "${{ steps.version.outputs.zip_name }}" module.prop | grep -q '^updateJson='
 
+      - name: Generate SHA-256 checksum
+        shell: bash
+        run: sha256sum "${{ steps.version.outputs.zip_name }}" > "${{ steps.version.outputs.zip_name }}.sha256"
+
       - name: Create or update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: Bluetooth Stability Helper v${{ steps.version.outputs.version }}
           tag_name: v${{ steps.version.outputs.version }}
-          files: ${{ steps.version.outputs.zip_name }}
+          files: |
+            ${{ steps.version.outputs.zip_name }}
+            ${{ steps.version.outputs.zip_name }}.sha256
           generate_release_notes: true
           draft: false
           prerelease: false

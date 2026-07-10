@@ -1,5 +1,19 @@
 #!/system/bin/sh
 MODDIR=${0%/*}
+# Compatibility safety: never run when the module is disabled or being removed.
+[ -f "$MODDIR/disable" ] && exit 0
+[ -f "$MODDIR/remove" ] && exit 0
+
+# Avoid duplicate long-running service instances after manager/service restarts.
+LOCK_DIR="/data/adb/bsh-service.lock"
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  old_pid=$(cat "$LOCK_DIR/pid" 2>/dev/null)
+  if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then exit 0; fi
+  rm -rf "$LOCK_DIR" 2>/dev/null
+  mkdir "$LOCK_DIR" 2>/dev/null || exit 0
+fi
+echo $$ > "$LOCK_DIR/pid"
+trap 'rm -rf "$LOCK_DIR" 2>/dev/null' EXIT INT TERM
 CONFIG_DIR="/sdcard/Bluetooth-Stability-Helper"
 LOG="$CONFIG_DIR/logs/bt-stability.log"
 STATE_DIR="$CONFIG_DIR/state"
