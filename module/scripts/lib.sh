@@ -72,8 +72,69 @@ package_running() { pkg="$1"; [ -n "$pkg" ] || return 1; pidof "$pkg" >/dev/null
 package_installed() { pkg="$1"; [ -n "$pkg" ] || return 1; cmd package path "$pkg" >/dev/null 2>&1 || pm path "$pkg" >/dev/null 2>&1; }
 first_installed_from_list() { for pkg in $1; do package_installed "$pkg" && { echo "$pkg"; return 0; }; done; return 1; }
 first_running_from_list() { for pkg in $1; do package_running "$pkg" && { echo "$pkg"; return 0; }; done; return 1; }
-whitelist_pkg() { pkg="$1"; [ -n "$pkg" ] || return 0; cmd deviceidle whitelist +"$pkg" >/dev/null 2>&1 && log "Whitelisted from idle: $pkg"; }
+whitelist_pkg() {
+  pkg="$1"; [ -n "$pkg" ] || return 0
+  if cmd deviceidle whitelist 2>/dev/null | grep -qx "$pkg"; then return 0; fi
+  if cmd deviceidle whitelist +"$pkg" >/dev/null 2>&1; then
+    echo "$pkg" >> "$MODDIR/state/added-idle-whitelist.txt" 2>/dev/null
+    log "Whitelisted from idle: $pkg"
+  fi
+}
 appops_allow_safe() { pkg="$1"; op="$2"; package_installed "$pkg" || return 0; cmd appops set "$pkg" "$op" allow >/dev/null 2>&1 && log "AppOps allow: $pkg $op"; }
+
+module_version() { sed -n 's/^version=//p' "$MODDIR/module.prop" 2>/dev/null | head -n1; }
+
+# Never source executable shell from shared storage. Only a documented set of
+# scalar overrides is accepted, validated, and copied into a private state file.
+load_user_config() {
+  cfg="$1"; [ -f "$cfg" ] || return 0
+  safe="$STATE_DIR/user-config.safe"
+  : > "$safe" || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in ''|'#'*) continue ;; esac
+    key=${line%%=*}; value=${line#*=}
+    [ "$key" != "$line" ] || { log "Config warning: ignored malformed override"; continue; }
+    case "$value" in
+      \"*\") value=${value#\"}; value=${value%\"} ;;
+      \'*\') value=${value#\'}; value=${value%\'} ;;
+    esac
+    case "$key" in
+      WATCHDOG_INTERVAL|LOG_IMPORTANT_ONLY|LOG_DEDUP_SECONDS|LOG_BOOT_CLEAN|LOG_ROTATE_SIZE_KB|LOG_KEEP_ROTATED_COUNT|LOG_MAX_TOTAL_MB|EXPORT_MAX_FILES|METRICS_MAX_KB|SNAPSHOT_MAX_FILES|LOGCAT_CAPTURE_LINES|LOGCAT_CAPTURE_WINDOW_SECONDS|MAX_RESTARTS_PER_HOUR|FAILURE_THRESHOLD|FAILURE_WINDOW_SECONDS|RECOVERY_COOLDOWN|FRESH_FAULT_MAX_AGE_SECONDS|STALE_SESSION_MINUTES|ENABLE_STALE_SESSION_WATCHDOG|STALE_SESSION_BT_REFRESH|ENABLE_INTERACTION_FREEZE_GUARD|INTERACTION_FREEZE_RECOVERY_AFTER_MATCHES|ENABLE_ADAPTER_TOGGLE_RECOVERY|ENABLE_BLUETOOTH_APP_FORCE_STOP|ENABLE_A2DP_OFFLOAD_DISABLE|ENABLE_BLE_SCAN_ALWAYS|ENABLE_WIFI_SCAN_THROTTLE_OFF|ENABLE_LOCATION_BG_THROTTLE_OFF|APPLY_APP_OPS_FIXES|APPLY_RESTRICTED_STANDBY_FIXES|WHITELIST_BLUETOOTH|WHITELIST_GMS|WHITELIST_POKEMON_GO|WHITELIST_POKEMOD|RUN_DIAGNOSTICS_ON_BOOT)
+        printf '%s' "$value" | grep -Eq '^[0-9]+$' || { log "Config warning: ignored invalid numeric override: $key"; continue; }
+        printf '%s=%s\n' "$key" "$value" >> "$safe"
+        ;;
+      STALE_SESSION_ACTION)
+        case "$value" in log|diagnose) printf '%s=%s\n' "$key" "$value" >> "$safe" ;; *) log "Config warning: ignored unsafe stale-session action" ;; esac
+        ;;
+      WHITELIST_EXTRA_PACKAGES)
+        printf '%s' "$value" | grep -Eq '^[A-Za-z0-9._ -]*$' || { log "Config warning: ignored invalid package list"; continue; }
+        printf '%s="%s"\n' "$key" "$value" >> "$safe"
+        ;;
+      *) log "Config warning: ignored unsupported override: $key" ;;
+    esac
+  done < "$cfg"
+  . "$safe"
+}
+
+# Return success once for each new, recent matching log event. Re-reading the
+# same logcat line can no longer increment the failure ladder every loop.
+fresh_log_fault() {
+  observer="$1"; pattern="$2"; lines="${3:-240}"
+  match=$(logcat -d -v epoch -t "$lines" 2>/dev/null | grep -iE "$pattern" | tail -n1)
+  [ -n "$match" ] || return 1
+  event_epoch=$(echo "$match" | awk '{print int($1)}')
+  now=$(date +%s)
+  case "$event_epoch" in ''|*[!0-9]*) event_epoch="$now" ;; esac
+  [ $((now-event_epoch)) -le "${FRESH_FAULT_MAX_AGE_SECONDS:-180}" ] || return 1
+  signature=$(printf '%s' "$match" | cksum 2>/dev/null | awk '{print $1":"$2}')
+  [ -n "$signature" ] || return 1
+  sigfile="$STATE_DIR/fault-signature-$observer"
+  [ "$(cat "$sigfile" 2>/dev/null)" = "$signature" ] && return 1
+  echo "$signature" > "$sigfile"
+  echo "$event_epoch" > "$STATE_DIR/last-fresh-fault-epoch"
+  printf '%s\n' "$match" > "$STATE_DIR/last-fresh-fault.txt"
+  return 0
+}
 
 
 sdk_int() { getprop ro.build.version.sdk 2>/dev/null; }
@@ -94,7 +155,8 @@ is_samsung_device() { [ "$(manufacturer_lc)" = "samsung" ] || [ "$(brand_lc)" = 
 is_miui_device() { getprop ro.miui.ui.version.name 2>/dev/null | grep -q . || [ "$(brand_lc)" = "xiaomi" ] || [ "$(brand_lc)" = "redmi" ] || [ "$(brand_lc)" = "poco" ]; }
 recent_bt_stall_score_penalty() {
   active_bluetooth_game >/dev/null 2>&1 || { echo 0; return; }
-  logcat -d -t 180 2>/dev/null | grep -iE 'gatt.*(133|257|timeout|busy|congested)|bt_stack.*(timeout|hci|acl|l2cap)|bluetooth.*(binder died|dead object|gattservice)|scan.*(failed|stopped|throttle)|location.*(stale|timeout|throttle)|pokemod|vpgp|go plus' >/dev/null 2>&1 && echo 20 || echo 0
+  last=$(cat "$STATE_DIR/last-fresh-fault-epoch" 2>/dev/null); now=$(date +%s)
+  [ -n "$last" ] && [ $((now-last)) -le "${FRESH_FAULT_MAX_AGE_SECONDS:-180}" ] && echo 20 || echo 0
 }
 bluetooth_health_score() {
   score=100
@@ -133,7 +195,6 @@ apply_device_profile() {
   sdk=$(sdk_int)
   if is_pixel_device && [ "$ENABLE_PIXEL_TUNING" = 1 ]; then
     log "Device profile: Pixel/Google"
-    ENABLE_A2DP_OFFLOAD_DISABLE=1
     APPLY_RESTRICTED_STANDBY_FIXES=1
     [ "$sdk" -ge "$ANDROID16_SDK" ] && [ "$ENABLE_PIXEL_ANDROID16_GUARDS" = 1 ] && { WATCHDOG_INTERVAL=25; FAILURE_THRESHOLD=2; log "Android 16+ Pixel guards active"; }
     if [ "$ENABLE_PIXEL_ANDROID17_GUARD" = 1 ] && is_pixel_android17; then
@@ -143,9 +204,6 @@ apply_device_profile() {
       FAILURE_THRESHOLD="$PIXEL_ANDROID17_FAILURE_THRESHOLD"
       COMPANION_DEVICE_KEEPALIVE_INTERVAL="$ANDROID17_COMPANION_KEEPALIVE_INTERVAL"
       GMS_LOCATION_KEEPALIVE_INTERVAL="$ANDROID17_GMS_LOCATION_KEEPALIVE_INTERVAL"
-      ENABLE_BLE_KEEPALIVE=1
-      ENABLE_GMS_LOCATION_KEEPALIVE=1
-      ENABLE_COMPANION_DEVICE_KEEPALIVE=1
       ENABLE_ANDROID17_COMPANION_PERMISSION_OBSERVE=1
       ENABLE_ANDROID17_BLE_PRIVACY_GUARD=1
       log "Pixel Android 17 guard active: build=$(build_id) sdk=$(sdk_int) known_family=$(is_known_pixel_android17_build_family && echo yes || echo no) july_cp2a=$(is_pixel_android17_july2026_cp2a && echo yes || echo no) interval=${WATCHDOG_INTERVAL}s stale=${STALE_SESSION_MINUTES}m"
@@ -154,8 +212,6 @@ apply_device_profile() {
       RECOVERY_COOLDOWN="$PIXEL_CP1A_RECOVERY_COOLDOWN"
       STALE_SESSION_MINUTES="$PIXEL_CP1A_STALE_SESSION_MINUTES"
       FAILURE_THRESHOLD="$PIXEL_CP1A_FAILURE_THRESHOLD"
-      ENABLE_BLE_KEEPALIVE=1
-      ENABLE_GMS_LOCATION_KEEPALIVE=1
       ENABLE_ANDROID16_BOND_LOSS_OBSERVE=1
       ENABLE_ANDROID16_COMPANION_DEVICE_OBSERVE=1
       log "Pixel Android 16 May 2026 CP1A guard active: build=$(build_id) interval=${WATCHDOG_INTERVAL}s stale=${STALE_SESSION_MINUTES}m"

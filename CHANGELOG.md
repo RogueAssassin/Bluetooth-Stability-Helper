@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.1.0
+- Rebuilt the watchdog around fresh, concrete fault evidence instead of app-name matches or elapsed session time.
+- Fixed the Android 17 profile that could toggle Bluetooth after eight minutes of otherwise healthy use.
+- Added per-observer log-event signatures so the same old logcat line cannot repeatedly advance recovery.
+- Raised Pixel recovery confirmation to two fresh failures, added a ten-minute cooldown, and capped refreshes at two per hour.
+- Made Android 16/17 bond and Companion Device observations diagnostic-only; Android 17 autonomous re-pairing is no longer interrupted by the module.
+- Disabled system-wide Wi-Fi scan throttling, location throttling, BLE-always-scan, A2DP offload changes, and forced AppOps by default.
+- Limited default app targeting to the confirmed Pokémon GO and Pokemod packages.
+- Replaced executable shared-storage configuration sourcing with a restricted scalar override parser.
+- Added original-value backup and uninstall restoration for optional global settings, properties, and idle-whitelist entries.
+- Removed ineffective dumpsys “keepalive” polling from the default profile and reduced watchdog overhead.
+- Centralised displayed version strings and corrected stale v1.0.4 labels.
+
 ## v1.0.5
 - Added detailed install-time device, Android, root-manager, architecture, SELinux, build and OEM-profile reporting.
 - Added installer payload validation before the root manager finalises installation.

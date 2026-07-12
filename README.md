@@ -13,16 +13,19 @@ It is especially useful when Bluetooth-heavy apps are active, including **Pokém
 ## Key features
 
 - Pixel-first Bluetooth stability tuning for Android 12–17.
-- Adaptive Bluetooth health engine with BLE, GATT, HAL, binder, location, and idle-state checks.
+- Evidence-based Bluetooth health engine with BLE, GATT, HAL, binder, location, and idle-state checks.
 - Pokémon GO and Pokemod awareness by package/name detection only.
-- VPGP³+ stall detection for sessions that appear connected but stop progressing.
+- VPGP³+ stall observation that requires concrete, fresh fault evidence before recovery.
+- Duplicate log-event suppression so one old log line cannot repeatedly toggle Bluetooth.
+- Android 17 bond-loss observation that allows the platform's autonomous re-pairing to work.
+- Reversible optional global tuning; conservative system defaults remain unchanged.
 - Recovery history and health metrics stored under `/sdcard/Bluetooth-Stability-Helper/`.
 - Vector/LSPosed safe: no app hooks, Zygisk hooks, or Xposed modules are installed.
 
 
 ## Logging safety
 
-v1.0.5 switches to capped, event-based logging so the helper does not fill phone storage.
+Logging is capped and event-based so the helper does not fill phone storage.
 
 - Old logs and exports are cleaned on reboot.
 - Routine keepalive/healthy-loop messages are suppressed by default.
@@ -87,9 +90,10 @@ Common safe overrides:
 
 ```sh
 WATCHDOG_INTERVAL=40
-STALE_SESSION_MINUTES=12
-ENABLE_A2DP_OFFLOAD_DISABLE=1
-MAX_RESTARTS_PER_HOUR=4
+STALE_SESSION_MINUTES=20
+ENABLE_A2DP_OFFLOAD_DISABLE=0
+MAX_RESTARTS_PER_HOUR=2
+RECOVERY_COOLDOWN=600
 ```
 
 ## Install
@@ -108,7 +112,13 @@ MAX_RESTARTS_PER_HOUR=4
 
 ## Current Pixel patch awareness
 
-This release recognises Android 17 July 2026 Pixel build family `CP2A.260705`, including `CP2A.260705.006` and `.A1` regional variants.
+The module records SDK, build family, and security-patch drift rather than depending on one firmware identifier. It recognises the July 2026 `CP2A.260705` family and the Android 17 QPR1 `CP31` line while keeping recovery decisions based on runtime fault evidence.
+
+## Recovery policy
+
+The helper does not treat an app name or a long-running session as a fault. A recovery requires two fresh, concrete failure observations within three minutes, such as repeated GATT errors, binder death, or a confirmed Bluetooth manager/process failure. Recoveries are capped at two per hour with a ten-minute cooldown. Bond and Companion Device events on Android 17 are diagnostic-only so the operating system can complete autonomous re-pairing.
+
+The shared-storage `user-config.sh` file is parsed as a restricted set of scalar overrides; it is never executed as unrestricted root shell code.
 
 ## Compatibility and installation safety
 

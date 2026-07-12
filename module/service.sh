@@ -22,6 +22,7 @@ USERCFG="$CONFIG_DIR/user-config.sh"
 RESTARTS_FILE="$STATE_DIR/restarts.txt"
 LAST_RECOVERY_FILE="$STATE_DIR/last_recovery.txt"
 FAIL_COUNT_FILE="$STATE_DIR/fail_count.txt"
+LAST_FAILURE_SIGNAL_FILE="$STATE_DIR/last_failure_signal.txt"
 SESSION_KEY_FILE="$STATE_DIR/vpgp3_session_key"
 SESSION_START_FILE="$STATE_DIR/vpgp3_session_start"
 LAST_STALE_FILE="$STATE_DIR/vpgp3_last_stale"
@@ -34,7 +35,6 @@ INTERACTION_FREEZE_FILE="$STATE_DIR/interaction_freeze_count"
 LAST_INTERACTION_RECOVERY_FILE="$STATE_DIR/last_interaction_recovery"
 mkdir -p "$STATE_DIR" "$CONFIG_DIR" "$CONFIG_DIR/logs" "$EXPORT_DIR" "$CONFIG_DIR/import" "$CONFIG_DIR/metrics"
 . "$MODDIR/common/config.sh"
-[ -f "$USERCFG" ] && . "$USERCFG"
 . "$MODDIR/scripts/lib.sh"
 
 rotate_log_if_needed() { log_rotate_enforce 2>/dev/null; log_storage_guard 2>/dev/null; }
@@ -45,6 +45,8 @@ cleanup_boot_logs() {
   find "$CONFIG_DIR/logs" -type f -delete 2>/dev/null
   find "$EXPORT_DIR" -type f -delete 2>/dev/null
   find "$STATE_DIR" -type f -name 'logdedup_*' -delete 2>/dev/null
+  find "$STATE_DIR" -type f -name 'fault-signature-*' -delete 2>/dev/null
+  rm -f "$STATE_DIR/last-fresh-fault-epoch" "$STATE_DIR/last-fresh-fault.txt" 2>/dev/null
   : > "$RECOVERY_HISTORY_FILE" 2>/dev/null
   : > "$CONFIG_DIR/metrics/bluetooth-health.json" 2>/dev/null
   echo "$(date '+%F %T')  Boot cleanup completed: old logs/exports removed" > "$LOG"
@@ -72,13 +74,14 @@ ensure_files() { mkdir -p "$STATE_DIR" "$EXPORT_DIR" "$CONFIG_DIR/logs" "$CONFIG
 # Keep this file under /sdcard/Bluetooth-Stability-Helper/ so Downloads stays clean.
 # Example safe overrides:
 # WATCHDOG_INTERVAL=45
-# STALE_SESSION_MINUTES=42
-# ENABLE_A2DP_OFFLOAD_DISABLE=1
+# STALE_SESSION_MINUTES=20
+# ENABLE_A2DP_OFFLOAD_DISABLE=0
 EOF
 }
 
 apply_adaptive_defaults() {
   apply_device_profile
+  load_user_config "$USERCFG"
   log "Engine profile: adaptive Bluetooth stability; primary target Pixel + Android 12-17; monthly patch aware; Pokémon GO/Pokemod/VPGP³+ name-aware"
 }
 
@@ -95,12 +98,38 @@ apply_appops_for_pkg() {
   appops_allow_safe "$pkg" COARSE_LOCATION
   appops_allow_safe "$pkg" POST_NOTIFICATION
   appops_allow_safe "$pkg" SCHEDULE_EXACT_ALARM
-  appops_allow_safe "$pkg" AUTO_REVOKE_PERMISSIONS_IF_UNUSED ignore
+  appops_allow_safe "$pkg" AUTO_REVOKE_PERMISSIONS_IF_UNUSED
   if [ "$ENABLE_ANDROID16_JOB_STANDBY_GUARD" = 1 ]; then
     am set-standby-bucket "$pkg" active >/dev/null 2>&1 && log "Standby bucket active: $pkg"
-    cmd jobscheduler monitor-battery off >/dev/null 2>&1
   fi
   # Keep appops conservative; do not touch VPN or LSPosed/Vector style hooks.
+}
+
+backup_global_setting() {
+  key="$1"; backup="$MODDIR/state/original-global-settings.txt"
+  grep -q "^$key|" "$backup" 2>/dev/null && return 0
+  value=$(settings get global "$key" 2>/dev/null)
+  printf '%s|%s\n' "$key" "${value:-null}" >> "$backup"
+}
+
+put_global_setting() {
+  key="$1"; value="$2"
+  backup_global_setting "$key"
+  settings put global "$key" "$value" >/dev/null 2>&1
+}
+
+backup_property() {
+  key="$1"; backup="$MODDIR/state/original-properties.txt"
+  grep -q "^$key|" "$backup" 2>/dev/null && return 0
+  value=$(getprop "$key" 2>/dev/null)
+  [ -n "$value" ] || value="__EMPTY__"
+  printf '%s|%s\n' "$key" "$value" >> "$backup"
+}
+
+put_property() {
+  key="$1"; value="$2"
+  backup_property "$key"
+  resetprop -n "$key" "$value" >/dev/null 2>&1
 }
 
 apply_static_tuning() {
@@ -111,28 +140,35 @@ apply_static_tuning() {
   if [ "$WHITELIST_POKEMOD" = 1 ]; then for pkg in $POKEMOD_PACKAGE_CANDIDATES $VPGP3_PACKAGE_CANDIDATES; do package_installed "$pkg" && whitelist_pkg "$pkg"; done; fi
   for pkg in $WHITELIST_EXTRA_PACKAGES; do whitelist_pkg "$pkg"; done
   if [ "$APPLY_RESTRICTED_STANDBY_FIXES" = 1 ]; then
-    for pkg in com.android.bluetooth com.google.android.gms $POKEMON_GO_PACKAGE_CANDIDATES $POKEMOD_PACKAGE_CANDIDATES $VPGP3_PACKAGE_CANDIDATES; do
+    for pkg in $POKEMON_GO_PACKAGE_CANDIDATES $POKEMOD_PACKAGE_CANDIDATES $VPGP3_PACKAGE_CANDIDATES; do
       package_installed "$pkg" || continue
-      cmd appops set "$pkg" RUN_ANY_IN_BACKGROUND allow >/dev/null 2>&1
-      cmd appops set "$pkg" RUN_IN_BACKGROUND allow >/dev/null 2>&1
-      cmd appops set "$pkg" START_FOREGROUND allow >/dev/null 2>&1
-      cmd appops set "$pkg" WAKE_LOCK allow >/dev/null 2>&1
       am set-inactive "$pkg" false >/dev/null 2>&1
+      am set-standby-bucket "$pkg" active >/dev/null 2>&1
     done
   fi
   if [ "$APPLY_APP_OPS_FIXES" = 1 ]; then
-    for pkg in com.android.bluetooth com.google.android.gms $POKEMON_GO_PACKAGE_CANDIDATES $POKEMOD_PACKAGE_CANDIDATES $VPGP3_PACKAGE_CANDIDATES $BLUETOOTH_GAME_PACKAGE_CANDIDATES; do apply_appops_for_pkg "$pkg"; done
+    for pkg in $POKEMON_GO_PACKAGE_CANDIDATES $POKEMOD_PACKAGE_CANDIDATES $VPGP3_PACKAGE_CANDIDATES; do apply_appops_for_pkg "$pkg"; done
   fi
-  [ "$ENABLE_BLE_SCAN_ALWAYS" = 1 ] && settings put global ble_scan_always_enabled 1 >/dev/null 2>&1
-  [ "$ENABLE_WIFI_SCAN_THROTTLE_OFF" = 1 ] && settings put global wifi_scan_throttle_enabled 0 >/dev/null 2>&1
-  [ "$ENABLE_LOCATION_BG_THROTTLE_OFF" = 1 ] && settings put global location_background_throttle_interval_ms 0 >/dev/null 2>&1
-  [ "$ENABLE_DEVICE_IDLE_TUNING" = 1 ] && settings put global device_idle_constants "$DEVICE_IDLE_CONSTANTS" >/dev/null 2>&1
-  [ "$ENABLE_A2DP_OFFLOAD_DISABLE" = 1 ] && { resetprop -n persist.bluetooth.a2dp_offload.disabled true 2>/dev/null; resetprop -n persist.vendor.bluetooth.a2dp_offload.disabled true 2>/dev/null; }
+  [ "$ENABLE_BLE_SCAN_ALWAYS" = 1 ] && put_global_setting ble_scan_always_enabled 1
+  [ "$ENABLE_WIFI_SCAN_THROTTLE_OFF" = 1 ] && put_global_setting wifi_scan_throttle_enabled 0
+  [ "$ENABLE_LOCATION_BG_THROTTLE_OFF" = 1 ] && put_global_setting location_background_throttle_interval_ms 0
+  [ "$ENABLE_DEVICE_IDLE_TUNING" = 1 ] && put_global_setting device_idle_constants "$DEVICE_IDLE_CONSTANTS"
+  [ "$ENABLE_A2DP_OFFLOAD_DISABLE" = 1 ] && {
+    put_property persist.bluetooth.a2dp_offload.disabled true
+    put_property persist.vendor.bluetooth.a2dp_offload.disabled true
+  }
 }
 
 bt_enabled_setting() { settings get global bluetooth_on 2>/dev/null; }
 bt_process_count() { count=0; for name in com.android.bluetooth android.hardware.bluetooth@1.0-service android.hardware.bluetooth-service android.hardware.bluetooth.audio-service vendor.qti.bluetooth@1.0-service vendor.bluetooth_service; do pidof "$name" >/dev/null 2>&1 && count=$((count+1)); done; echo "$count"; }
-health_bad_state() { summary="$(dumpsys bluetooth_manager 2>/dev/null | tr '[:upper:]' '[:lower:]')"; echo "$summary" | grep -q "state:.*on" && return 1; echo "$summary" | grep -q "enabled: true" && return 1; return 0; }
+health_bad_state() {
+  [ "$(bt_enabled_setting)" = 1 ] || return 1
+  summary="$(dumpsys bluetooth_manager 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+  [ -n "$summary" ] || return 1
+  echo "$summary" | grep -Eq 'state:.*on|state *= *on|enabled: *true|isenabled\(\): *true' && return 1
+  echo "$summary" | grep -Eq 'state:.*off|state *= *off|enabled: *false|isenabled\(\): *false' && return 0
+  return 1
+}
 
 active_bluetooth_game() { for pkg in $BLUETOOTH_GAME_PACKAGE_CANDIDATES; do package_running "$pkg" && { echo "$pkg"; return 0; }; done; return 1; }
 active_pokemod() { first_running_from_list "$POKEMOD_PACKAGE_CANDIDATES $VPGP3_PACKAGE_CANDIDATES"; }
@@ -210,7 +246,7 @@ android16_connectivity_change_patterns() {
   [ "$ENABLE_ANDROID16_BOND_LOSS_OBSERVE" = 1 ] || return 1
   [ "$(sdk_int)" -ge "$ANDROID16_SDK" ] || return 1
   active_bluetooth_game >/dev/null 2>&1 || return 1
-  logcat -d -t ${LOGCAT_CAPTURE_WINDOW_SECONDS:-180} 2>/dev/null | grep -iE 'bond.*(loss|lost|none|removed)|encryption.*(change|failed|lost)|companion.*(presence|unbound|disconnected|timeout)|cdm.*(presence|unbound)|bluetooth.*(bond|encryption)' >/dev/null 2>&1 || return 1
+  fresh_log_fault android16-observer 'bond.*(loss|lost|removed)|encryption.*(failed|lost)|companion.*(unbound|disconnected|timeout)|cdm.*(unbound|timeout)' || return 1
   log "Android 16 connectivity observer matched bond/encryption/companion-device change pattern"
   pixel_connectivity_snapshot
   return 0
@@ -220,9 +256,9 @@ android17_connectivity_change_patterns() {
   [ "$ENABLE_PIXEL_ANDROID17_GUARD" = 1 ] || return 1
   [ "$(sdk_int)" -ge "$ANDROID17_SDK" ] || return 1
   active_bluetooth_game >/dev/null 2>&1 || return 1
-  # Android 17 adds Companion Device Manager permission/profile changes and tighter background/audio behaviour.
-  # We observe related CDM/permission/BLE privacy/memory-pressure signals and trigger a safe BT refresh only after the normal failure ladder.
-  logcat -d -t ${LOGCAT_CAPTURE_WINDOW_SECONDS:-180} 2>/dev/null | grep -iE 'companion.*(permission|association|profile|presence|nearby|timeout|disconnected|unbound)|cdm.*(permission|association|profile|presence|nearby|timeout)|bluetooth.*(privacy|address|random|rpa|permission|nearby|scan.*denied)|gatt.*(133|257|timeout|busy|congested|callback|dead)|background audio|audio focus.*denied|low memory|lmkd.*(niantic|pokemod|bluetooth|gms)' >/dev/null 2>&1 || return 1
+  # Android 17 can autonomously re-pair after bond loss. Observe that process
+  # without toggling the adapter and interrupting the platform recovery.
+  fresh_log_fault android17-observer 'companion.*(permission denied|association.*failed|presence.*timeout|disconnected|unbound)|cdm.*(permission denied|association.*failed|presence.*timeout|unbound)|bluetooth.*(scan.*denied|permission denied)|bond.*(loss|lost|key missing)' || return 1
   log "Android 17 connectivity observer matched CDM/permission/BLE/privacy/memory-pressure pattern"
   pixel_connectivity_snapshot
   return 0
@@ -231,9 +267,8 @@ android17_connectivity_change_patterns() {
 interaction_freeze_patterns() {
   [ "$ENABLE_INTERACTION_FREEZE_GUARD" = 1 ] || return 1
   active_bluetooth_game >/dev/null 2>&1 || return 1
-  # The freeze normally appears as GATT busy/timeout, binder death, scan pause,
-  # or Pokémon GO/Google Play services location stalls while the accessory remains connected.
-  logcat -d -t "$INTERACTION_FREEZE_WINDOW_SECONDS" 2>/dev/null | grep -iE 'gatt.*(busy|133|257|timeout|disconnect|stuck|dead)|bluetoothgatt.*(busy|timeout|status=133)|bt_stack.*(timeout|hci|acl|l2cap|gatt)|bluetooth.*(binder died|dead object|adapter service|profile service|gattservice)|scan.*(failed|stopped|too frequent|throttle)|niantic|pokemod|vpgp|go plus|plus\+|fused.*(stale|timeout)|location.*(stale|throttle|no last location)' >/dev/null 2>&1 || return 1
+  # Require a concrete failure. App names by themselves are not fault signals.
+  fresh_log_fault interaction-freeze 'gatt.*(status[ =:-]*(133|257)|busy|timeout|congested|disconnect|stuck|dead)|bluetoothgatt.*(busy|timeout|status[ =:-]*133)|bt_stack.*(timeout|hci.*(error|failed|timeout)|acl.*(failed|timeout)|l2cap.*(failed|timeout))|bluetooth.*(binder died|dead object|adapterservice.*(crash|died)|gattservice.*(crash|died))|scan.*(failed|stopped unexpectedly)|fused.*(stale|timeout)|location.*(stale|timeout)' "$INTERACTION_FREEZE_WINDOW_SECONDS" || return 1
   c=$(cat "$INTERACTION_FREEZE_FILE" 2>/dev/null); [ -z "$c" ] && c=0; c=$((c+1)); echo "$c" > "$INTERACTION_FREEZE_FILE"
   log "Interaction freeze guard matched recent BLE/location/app stall pattern count=$c"
   [ "$POKEMONPLUS_AUTO_EXPORT_ON_STALL" = 1 ] && MODDIR="$MODDIR" sh "$MODDIR/scripts/diagnostics.sh" >/dev/null 2>&1
@@ -249,7 +284,7 @@ reset_interaction_freeze_count() { echo 0 > "$INTERACTION_FREEZE_FILE"; }
 scan_stall_patterns() {
   [ "$ENABLE_GO_PLUS_STALL_PATTERNS" = 1 ] || return 1
   active_bluetooth_game >/dev/null 2>&1 || return 1
-  logcat -d -t ${LOGCAT_CAPTURE_WINDOW_SECONDS:-180} 2>/dev/null | grep -iE 'gatt.*(133|257|timeout|disconnect|dead|busy)|go plus.*(disconnect|timeout|stale)|vpgp|vpgp3|ble.*(scan.*failed|stopped|timeout)|location.*(stale|throttle)|fused.*stale|bt_stack.*(hci|timeout)|bluetooth.*(crash|dead object|binder died)' >/dev/null 2>&1 || return 1
+  fresh_log_fault scan-stall 'gatt.*(status[ =:-]*(133|257)|timeout|disconnect|dead|busy|congested)|go plus.*(disconnect|timeout|stale)|ble.*scan.*(failed|stopped unexpectedly|timeout)|bt_stack.*(hci.*(error|failed|timeout)|timeout)|bluetooth.*(crash|dead object|binder died)' || return 1
   log "Recent logs contain BLE/GATT/location stall pattern while a Bluetooth-aware game is active"
   [ "$POKEMONPLUS_AUTO_EXPORT_ON_STALL" = 1 ] && MODDIR="$MODDIR" sh "$MODDIR/scripts/diagnostics.sh" >/dev/null 2>&1
   return 0
@@ -273,7 +308,8 @@ track_vpgp3_session() {
     echo "$now" > "$LAST_STALE_FILE"
     log "Possible stale $VPGP3_DISPLAY_NAME / Bluetooth game session: age=${age_min}m key=$key"
     [ "$POKEMONPLUS_AUTO_EXPORT_ON_STALL" = 1 ] && MODDIR="$MODDIR" sh "$MODDIR/scripts/diagnostics.sh" >/dev/null 2>&1
-    [ "$STALE_SESSION_ACTION" = "bt_refresh" ] && [ "$STALE_SESSION_BT_REFRESH" = 1 ] && return 0
+    # Elapsed time is not proof of a stall. Never toggle Bluetooth from session
+    # age alone; concrete fresh log faults drive the recovery ladder instead.
   fi
   return 1
 }
@@ -300,13 +336,26 @@ cleanup_restart_history() { now=$(date +%s); cutoff=$((now-7200)); [ -f "$RESTAR
 repair_audio_route() { [ "$ENABLE_AUDIO_ROUTE_REPAIR" = 1 ] || return; cmd media_session volume --show >/dev/null 2>&1; dumpsys audio >/dev/null 2>&1; log "Audio route repair hint executed"; }
 
 restart_bt_stack() {
+  [ "$(bt_enabled_setting)" = 1 ] || { log "Recovery skipped: Bluetooth is off"; return; }
   recent=$(count_recent_restarts); [ "$recent" -ge "$MAX_RESTARTS_PER_HOUR" ] && { log "Recovery skipped: max restarts reached $recent/$MAX_RESTARTS_PER_HOUR"; return; }
   recovery_cooldown_ok || { log "Recovery skipped: cooldown active"; return; }
   fails=$(get_fail_count); repair_audio_route
   if [ "$ENABLE_BLUETOOTH_APP_FORCE_STOP" = 1 ] && [ "$fails" -ge 3 ]; then am force-stop com.android.bluetooth >/dev/null 2>&1; sleep 2; log "Bluetooth app force-stop attempted"; fi
   if [ "$ENABLE_ADAPTER_TOGGLE_RECOVERY" = 1 ]; then
-    log "Bluetooth adapter safe refresh recovery"
-    svc bluetooth disable >/dev/null 2>&1; sleep 4; svc bluetooth enable >/dev/null 2>&1; sleep 7; record_restart
+    log "Bluetooth adapter confirmed-fault refresh recovery"
+    pixel_connectivity_snapshot
+    if svc bluetooth disable >/dev/null 2>&1; then
+      sleep 4
+      if svc bluetooth enable >/dev/null 2>&1; then
+        sleep 7
+        record_restart
+        now=$(date +%s); echo "$now" > "$SESSION_START_FILE"
+      else
+        log "Recovery error: Bluetooth enable command failed"
+      fi
+    else
+      log "Recovery error: Bluetooth disable command failed"
+    fi
   fi
 }
 
@@ -317,7 +366,6 @@ periodic_health_export() {
   echo "$now" > "$LAST_HEALTH_EXPORT_FILE"
   score=$(export_bluetooth_health_score 2>/dev/null)
   [ -n "$score" ] && log "Bluetooth health score: $score"
-  [ -n "$score" ] && [ "$score" -lt "${HEALTH_SCORE_RECOVERY_THRESHOLD:-55}" ] && active_bluetooth_game >/dev/null 2>&1 && return 1
   return 0
 }
 
@@ -325,7 +373,7 @@ write_status() {
   sdk=$(sdk_int); model=$(getprop ro.product.model 2>/dev/null); brand=$(getprop ro.product.brand 2>/dev/null)
   go=$(active_pokemon_go); pm=$(active_pokemod); game=$(active_bluetooth_game)
   cat > "$LOCAL_STATUS_FILE" <<EOF
-Bluetooth Stability Helper v1.0.4
+Bluetooth Stability Helper v$(module_version)
 Profile: adaptive
 Build ID: $(build_id)
 Device: $brand $model SDK=$sdk
@@ -345,7 +393,7 @@ EOF
 main_loop() {
   while true; do
     rotate_log_if_needed; cleanup_restart_history; cap_runtime_files; ensure_files
-    . "$MODDIR/common/config.sh"; [ -f "$USERCFG" ] && . "$USERCFG"; . "$MODDIR/scripts/lib.sh"; apply_adaptive_defaults
+    . "$MODDIR/common/config.sh"; . "$MODDIR/scripts/lib.sh"; apply_adaptive_defaults
     bad=0
     if [ "$WATCHDOG_ENABLED" = 1 ]; then
       proc_count=$(bt_process_count)
@@ -355,14 +403,32 @@ main_loop() {
       ble_keepalive
       gms_location_keepalive
       companion_device_keepalive
-      periodic_health_export || bad=1
-      android16_connectivity_change_patterns && bad=1
-      android17_connectivity_change_patterns && bad=1
+      periodic_health_export
+      # Bond/CDM observers are diagnostic only. Android 17 performs autonomous
+      # re-pairing, so these signals must not fight the platform recovery.
+      android16_connectivity_change_patterns
+      android17_connectivity_change_patterns
       interaction_freeze_patterns && bad=1
       scan_stall_patterns && bad=1
-      track_vpgp3_session && bad=1
+      track_vpgp3_session
       if pokemon_stack_health_bad; then [ "$POKEMOD_WARN_ONLY" = 1 ] && log "Pokemod/$VPGP3_DISPLAY_NAME signal warn-only; not triggering BT recovery" || bad=1; fi
-      if [ "$bad" = 1 ]; then fails=$(increment_fail_count); log "Failure count: $fails/$FAILURE_THRESHOLD"; [ "$fails" -ge "$FAILURE_THRESHOLD" ] && restart_bt_stack && reset_fail_count && reset_interaction_freeze_count; else reset_fail_count; reset_interaction_freeze_count; fi
+      now=$(date +%s); last_signal=$(cat "$LAST_FAILURE_SIGNAL_FILE" 2>/dev/null)
+      if [ "$bad" = 1 ]; then
+        if [ -z "$last_signal" ] || [ $((now-last_signal)) -gt "${FAILURE_WINDOW_SECONDS:-180}" ]; then reset_fail_count; fi
+        echo "$now" > "$LAST_FAILURE_SIGNAL_FILE"
+        fails=$(increment_fail_count)
+        log "Failure evidence: $fails/$FAILURE_THRESHOLD within ${FAILURE_WINDOW_SECONDS:-180}s"
+        if [ "$fails" -ge "$FAILURE_THRESHOLD" ]; then
+          restart_bt_stack
+          reset_fail_count
+          reset_interaction_freeze_count
+          rm -f "$LAST_FAILURE_SIGNAL_FILE" 2>/dev/null
+        fi
+      elif [ -n "$last_signal" ] && [ $((now-last_signal)) -gt "${FAILURE_WINDOW_SECONDS:-180}" ]; then
+        reset_fail_count
+        reset_interaction_freeze_count
+        rm -f "$LAST_FAILURE_SIGNAL_FILE" 2>/dev/null
+      fi
     fi
     write_status
     sleep "$WATCHDOG_INTERVAL"
@@ -372,7 +438,7 @@ main_loop() {
 wait_until_boot_complete
 ensure_files
 cleanup_boot_logs
-log "Bluetooth Stability Helper 1.0.4 adaptive engine start"
+log "Bluetooth Stability Helper $(module_version) adaptive engine start"
 apply_adaptive_defaults
 apply_static_tuning
 [ "${RUN_DIAGNOSTICS_ON_BOOT:-0}" = "1" ] && MODDIR="$MODDIR" sh "$MODDIR/scripts/diagnostics.sh" >/dev/null 2>&1

@@ -1,15 +1,14 @@
 #!/system/bin/sh
 MODDIR=${MODDIR:-${0%/*}/..}
 . "$MODDIR/common/config.sh"
-[ -f "$LOCAL_USER_CONFIG" ] && . "$LOCAL_USER_CONFIG"
-[ -f "$MODDIR/user-config.sh" ] && . "$MODDIR/user-config.sh"
 . "$MODDIR/scripts/lib.sh"
+load_user_config "$LOCAL_USER_CONFIG"
 OUT="$EXPORT_DIR/status.txt"
 mkdir -p "$EXPORT_DIR" "$LOG_DIR" "$CONFIG_DIR" "$STATE_DIR"
 {
  echo "Bluetooth Stability Helper adaptive Bluetooth diagnostics"
  echo "Timestamp: $(date '+%F %T')"
- echo "Version: 1.0.4"
+ echo "Version: $(module_version)"
 echo "Build ID: $(getprop ro.build.id 2>/dev/null)"
 echo "Fingerprint: $(getprop ro.build.fingerprint 2>/dev/null)"
  echo "Profile: adaptive Bluetooth stability engine"

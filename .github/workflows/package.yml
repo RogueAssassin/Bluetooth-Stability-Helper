@@ -55,6 +55,9 @@ jobs:
             bash -n "$file"
           done < <(find module -type f -name '*.sh' -print0)
 
+      - name: Run module tests
+        run: sh tests/run-tests.sh
+
       - name: Create Magisk install zip
         shell: bash
         run: |

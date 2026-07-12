@@ -7,7 +7,7 @@ LATESTARTSERVICE=true
 print_modname() {
   ui_print "***************************************"
   ui_print " Bluetooth Stability Helper PRO"
-  ui_print " v1.0.5 Compatibility Maintenance"
+  ui_print " v1.1.0 Evidence-Based Recovery"
   ui_print "***************************************"
   ui_print "Adaptive Android Bluetooth/BLE stability"
   ui_print "Pixel-first, with safe multi-OEM detection"
@@ -41,15 +41,6 @@ on_install() {
   else
     unzip -o "$ZIPFILE" -x 'META-INF/*' -d "$MODPATH" >&2
   fi
-
-  [ -f "$MODPATH/user-config.sh" ] || cat > "$MODPATH/user-config.sh" <<'CFG'
-#!/system/bin/sh
-# Optional Bluetooth Stability Helper overrides.
-# Defaults are automatic and recommended for most users.
-# WATCHDOG_INTERVAL=40
-# STALE_SESSION_MINUTES=42
-# ENABLE_A2DP_OFFLOAD_DISABLE=1
-CFG
 
   bsh_verify_payload
   ui_print ""
