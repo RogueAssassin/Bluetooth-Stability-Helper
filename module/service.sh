@@ -26,9 +26,6 @@ LAST_FAILURE_SIGNAL_FILE="$STATE_DIR/last_failure_signal.txt"
 SESSION_KEY_FILE="$STATE_DIR/vpgp3_session_key"
 SESSION_START_FILE="$STATE_DIR/vpgp3_session_start"
 LAST_STALE_FILE="$STATE_DIR/vpgp3_last_stale"
-LAST_KEEPALIVE_FILE="$STATE_DIR/last_ble_keepalive"
-LAST_GMS_LOCATION_KEEPALIVE_FILE="$STATE_DIR/last_gms_location_keepalive"
-LAST_COMPANION_KEEPALIVE_FILE="$STATE_DIR/last_companion_keepalive"
 LAST_HEALTH_EXPORT_FILE="$STATE_DIR/last_health_export"
 RECOVERY_HISTORY_FILE="$CONFIG_DIR/metrics/recovery-history.jsonl"
 INTERACTION_FREEZE_FILE="$STATE_DIR/interaction_freeze_count"
@@ -69,7 +66,11 @@ cap_runtime_files() {
   [ -d "$CONFIG_DIR/metrics" ] && find "$CONFIG_DIR/metrics" -type f -size +${METRICS_MAX_KB:-512}k -exec sh -c ': > "$1"' _ {} \; 2>/dev/null
 }
 wait_until_boot_complete() { until [ "$(getprop sys.boot_completed)" = "1" ]; do sleep 5; done; sleep 25; }
-ensure_files() { mkdir -p "$STATE_DIR" "$EXPORT_DIR" "$CONFIG_DIR/logs" "$CONFIG_DIR/import" "$CONFIG_DIR/metrics"; [ -f "$USERCFG" ] || cat > "$USERCFG" <<'EOF'
+ensure_files() {
+  mkdir -p "$STATE_DIR" "$EXPORT_DIR" "$CONFIG_DIR/logs" "$CONFIG_DIR/import" "$CONFIG_DIR/metrics"
+  [ -f "$MODDIR/state/install-report.txt" ] && cp "$MODDIR/state/install-report.txt" "$CONFIG_DIR/install-report.txt" 2>/dev/null
+  [ -f "$MODDIR/state/install-profile.txt" ] && cp "$MODDIR/state/install-profile.txt" "$STATE_DIR/install-profile.txt" 2>/dev/null
+  [ -f "$USERCFG" ] || cat > "$USERCFG" <<'EOF'
 # Bluetooth Stability Helper local overrides.
 # Keep this file under /sdcard/Bluetooth-Stability-Helper/ so Downloads stays clean.
 # Example safe overrides:
@@ -160,7 +161,14 @@ apply_static_tuning() {
 }
 
 bt_enabled_setting() { settings get global bluetooth_on 2>/dev/null; }
-bt_process_count() { count=0; for name in com.android.bluetooth android.hardware.bluetooth@1.0-service android.hardware.bluetooth-service android.hardware.bluetooth.audio-service vendor.qti.bluetooth@1.0-service vendor.bluetooth_service; do pidof "$name" >/dev/null 2>&1 && count=$((count+1)); done; echo "$count"; }
+bt_process_count() {
+  count=0
+  for name in com.android.bluetooth android.hardware.bluetooth-service android.hardware.bluetooth-service.default android.hardware.bluetooth.audio-service vendor.qti.bluetooth@1.0-service vendor.bluetooth_service; do
+    pidof "$name" >/dev/null 2>&1 && count=$((count+1))
+  done
+  if [ "$count" -eq 0 ] && ps -A 2>/dev/null | grep -iE 'com\.android\.bluetooth|android\.hardware\.bluetooth|vendor\..*bluetooth' | grep -v grep >/dev/null 2>&1; then count=1; fi
+  echo "$count"
+}
 health_bad_state() {
   [ "$(bt_enabled_setting)" = 1 ] || return 1
   summary="$(dumpsys bluetooth_manager 2>/dev/null | tr '[:upper:]' '[:lower:]')"
@@ -180,40 +188,6 @@ location_health_check() {
   [ "$mode" = 3 ] || [ "$mode" = 1 ] || { log "Location warning: location_mode=$mode; Pokémon GO/Pokemod BLE sessions may stall"; return 0; }
   [ "$CHECK_BLE_SCAN_SETTINGS" = 1 ] && [ "$(settings get global ble_scan_always_enabled 2>/dev/null)" != 1 ] && log "BLE scan warning: ble_scan_always_enabled is not 1"
   return 1
-}
-
-ble_keepalive() {
-  [ "$ENABLE_BLE_KEEPALIVE" = 1 ] || return
-  now=$(date +%s); last=$(cat "$LAST_KEEPALIVE_FILE" 2>/dev/null); [ -n "$last" ] && [ $((now-last)) -lt "$BLE_KEEPALIVE_INTERVAL" ] && return
-  dumpsys bluetooth_manager >/dev/null 2>&1
-  dumpsys bluetooth_manager --proto >/dev/null 2>&1
-  echo "$now" > "$LAST_KEEPALIVE_FILE"
-  log "BLE keepalive poll executed"
-}
-
-
-gms_location_keepalive() {
-  [ "$ENABLE_GMS_LOCATION_KEEPALIVE" = 1 ] || return
-  active_bluetooth_game >/dev/null 2>&1 || return
-  now=$(date +%s); last=$(cat "$LAST_GMS_LOCATION_KEEPALIVE_FILE" 2>/dev/null)
-  [ -n "$last" ] && [ $((now-last)) -lt "$GMS_LOCATION_KEEPALIVE_INTERVAL" ] && return
-  dumpsys location >/dev/null 2>&1
-  dumpsys activity service com.google.android.gms/.chimera.GmsBoundBrokerService >/dev/null 2>&1
-  dumpsys activity provider com.google.android.gms >/dev/null 2>&1
-  echo "$now" > "$LAST_GMS_LOCATION_KEEPALIVE_FILE"
-  log "GMS/location keepalive poll executed for active Bluetooth game"
-}
-
-companion_device_keepalive() {
-  [ "$ENABLE_COMPANION_DEVICE_KEEPALIVE" = 1 ] || return
-  active_bluetooth_game >/dev/null 2>&1 || return
-  now=$(date +%s); last=$(cat "$LAST_COMPANION_KEEPALIVE_FILE" 2>/dev/null)
-  [ -n "$last" ] && [ $((now-last)) -lt "$COMPANION_DEVICE_KEEPALIVE_INTERVAL" ] && return
-  dumpsys companiondevice >/dev/null 2>&1
-  dumpsys role >/dev/null 2>&1
-  dumpsys bluetooth_manager >/dev/null 2>&1
-  echo "$now" > "$LAST_COMPANION_KEEPALIVE_FILE"
-  log "CompanionDevice/Bluetooth keepalive poll executed for Android 16 presence/bond tracking"
 }
 
 pixel_connectivity_snapshot() {
@@ -374,11 +348,14 @@ write_status() {
   go=$(active_pokemon_go); pm=$(active_pokemod); game=$(active_bluetooth_game)
   cat > "$LOCAL_STATUS_FILE" <<EOF
 Bluetooth Stability Helper v$(module_version)
-Profile: adaptive
+Profile: ${PROFILE_LABEL:-$(device_profile_id)}
 Build ID: $(build_id)
 Device: $brand $model SDK=$sdk
 Bluetooth enabled setting: $(bt_enabled_setting)
 BT process count: $(bt_process_count)
+Strict process check: ${ENABLE_STRICT_BT_PROCESS_CHECK:-0}
+Recovery evidence: ${FAILURE_THRESHOLD} faults within ${FAILURE_WINDOW_SECONDS}s
+Adapter recovery: ${ENABLE_ADAPTER_TOGGLE_RECOVERY} (max ${MAX_RESTARTS_PER_HOUR}/hour, cooldown ${RECOVERY_COOLDOWN}s)
 Pixel May 2026 CP1A guard: $(is_pixel_android16_may2026 && echo active || echo inactive)
 Pixel Android 17 guard: $(is_pixel_android17 && echo active || echo inactive)
 Active Pokémon GO: ${go:-none}
@@ -397,12 +374,9 @@ main_loop() {
     bad=0
     if [ "$WATCHDOG_ENABLED" = 1 ]; then
       proc_count=$(bt_process_count)
-      [ "$ENABLE_BT_PROCESS_CHECK" = 1 ] && [ "$(bt_enabled_setting)" = 1 ] && [ "$proc_count" -eq 0 ] && { log "Bluetooth enabled but no known Bluetooth process found"; bad=1; }
+      [ "$ENABLE_BT_PROCESS_CHECK" = 1 ] && [ "${ENABLE_STRICT_BT_PROCESS_CHECK:-0}" = 1 ] && [ "$(bt_enabled_setting)" = 1 ] && [ "$proc_count" -eq 0 ] && { log "Bluetooth enabled but no known Bluetooth process found"; bad=1; }
       [ "$ENABLE_BT_MANAGER_CHECK" = 1 ] && health_bad_state && { log "bluetooth_manager did not report ON/true"; bad=1; }
       location_health_check
-      ble_keepalive
-      gms_location_keepalive
-      companion_device_keepalive
       periodic_health_export
       # Bond/CDM observers are diagnostic only. Android 17 performs autonomous
       # re-pairing, so these signals must not fight the platform recovery.

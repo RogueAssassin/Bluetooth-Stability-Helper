@@ -19,6 +19,8 @@ It is especially useful when Bluetooth-heavy apps are active, including **Pokém
 - Duplicate log-event suppression so one old log line cannot repeatedly toggle Bluetooth.
 - Android 17 bond-loss observation that allows the platform's autonomous re-pairing to work.
 - Reversible optional global tuning; conservative system defaults remain unchanged.
+- Modern verified installer with device, root-manager, Bluetooth-stack and profile reporting.
+- Conservative profiles for major Android manufacturers with automatic safe fallback.
 - Recovery history and health metrics stored under `/sdcard/Bluetooth-Stability-Helper/`.
 - Vector/LSPosed safe: no app hooks, Zygisk hooks, or Xposed modules are installed.
 
@@ -28,7 +30,7 @@ It is especially useful when Bluetooth-heavy apps are active, including **Pokém
 Logging is capped and event-based so the helper does not fill phone storage.
 
 - Old logs and exports are cleaned on reboot.
-- Routine keepalive/healthy-loop messages are suppressed by default.
+- Routine healthy-loop messages are suppressed by default.
 - The active log rotates at 256 KB and keeps only a small number of rotated files.
 - Exported diagnostics and Pixel snapshots are capped.
 - Recovery history is trimmed automatically.
@@ -49,6 +51,7 @@ RUN_DIAGNOSTICS_ON_BOOT=0
 ```text
 /sdcard/Bluetooth-Stability-Helper/
 ├── user-config.sh
+├── install-report.txt
 ├── status.txt
 ├── logs/
 ├── state/
@@ -66,7 +69,18 @@ RUN_DIAGNOSTICS_ON_BOOT=0
 - Android 16
 - Android 17
 
-Pixel devices receive the most specific tuning. Samsung, Xiaomi/Redmi/Poco, and generic Android devices use safer fallback profiles.
+Pixel devices receive the most specific tuning. Every other profile keeps vendor properties untouched and uses slower confirmation thresholds.
+
+| Detected devices | Runtime profile | Default recovery policy |
+| --- | --- | --- |
+| Google Pixel | Primary Pixel | 2 faults in 3 minutes; maximum 2 recoveries/hour |
+| Samsung / One UI | Conservative Samsung | 3 faults in 4 minutes; maximum 1 recovery/hour |
+| Xiaomi / Redmi / Poco | Conservative Xiaomi | 3 faults in 4 minutes; maximum 1 recovery/hour |
+| OnePlus / Oppo / Realme | Conservative OPlus | 3 faults in 4 minutes; maximum 1 recovery/hour |
+| Nothing, Motorola, ASUS/ROG, Sony, Vivo/iQOO | Conservative OEM | 3 faults in 4 minutes; maximum 1 recovery/hour |
+| Huawei / Honor | Diagnostic fallback | Automatic adapter recovery disabled |
+| Unknown OEM on Android 12–17 | Generic safe fallback | 3 faults in 4 minutes; maximum 1 recovery/hour |
+| Android outside 12–17 | Unsupported fallback | Diagnostics only; automatic recovery disabled |
 
 ## Pokémon GO / Pokemod / VPGP³+ support
 
@@ -99,9 +113,12 @@ RECOVERY_COOLDOWN=600
 ## Install
 
 1. Install the module ZIP in Magisk.
-2. Reboot.
-3. Let the module run automatically.
-4. Check status/logs under `/sdcard/Bluetooth-Stability-Helper/` if needed.
+2. Review the detected device, Bluetooth stack and selected profile shown by the installer.
+3. Reboot.
+4. Let the module run automatically.
+5. Check `install-report.txt` and `status.txt` under `/sdcard/Bluetooth-Stability-Helper/`.
+
+The installer distinguishes a clean installation from an upgrade, validates every required file and shell script, and preserves restoration data from the previous version. Existing external user configuration is not overwritten.
 
 ## Project assets
 
@@ -122,6 +139,12 @@ The shared-storage `user-config.sh` file is parsed as a restricted set of scalar
 
 ## Compatibility and installation safety
 
-The installer reports the detected Android version, build, device manufacturer, architecture, SELinux state, root manager, and selected OEM profile before installation. It validates the required module payload and includes a non-destructive `verify.sh` self-check. These safeguards improve support across Magisk, KernelSU and APatch-style environments without changing the module’s Bluetooth stability purpose.
+The installer reports the install mode, root manager/version, Android version, build, security patch, device manufacturer, SoC, architecture, SELinux state, Bluetooth stack, installed target apps and selected OEM profile. It validates the complete payload and all shell syntax before installation finishes. The Action button produces current diagnostics, while `verify.sh` performs a non-destructive service and compatibility check.
+
+No module can honestly guarantee identical behaviour on every vendor ROM without device testing. Unknown devices therefore receive the generic safe profile, and unsupported Android versions receive diagnostics only. This prevents guessed vendor tweaks from being applied merely to claim compatibility.
 
 The project does **not** include Play Integrity spoofing, keybox management, Zygisk injection, app hiding, device fingerprint modification, or changes to LSPosed/Vector.
+
+## Implementation references
+
+The installation and lifecycle design was reviewed against the official [Magisk module developer guide](https://topjohnwu.github.io/Magisk/guides.html), the established [MMT-Extended module template](https://github.com/Zackptg5/MMT-Extended), and the mature [Advanced Charging Controller](https://github.com/VR-25/acc) module. They are design references only; Bluetooth Stability Helper retains its own implementation and purpose.

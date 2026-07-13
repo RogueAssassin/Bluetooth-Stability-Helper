@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.2.0
+- Replaced inactive legacy installer callbacks with a modern top-level `customize.sh` flow compatible with current Magisk module installation behaviour.
+- Added a detailed install screen covering install/upgrade mode, root manager, device, Android build, security patch, SoC, ABI, SELinux, Bluetooth stack, app detection and selected recovery policy.
+- Added transactional payload and shell-syntax verification before installation completes.
+- Added persistent install and detected-profile reports, copied to the runtime folder after reboot.
+- Preserved original-setting and idle-whitelist restoration data across module upgrades.
+- Added active conservative profiles for Samsung, Xiaomi/Redmi/Poco, OnePlus/Oppo/Realme, Nothing, Motorola, ASUS/ROG, Sony Xperia and Vivo/iQOO.
+- Added a diagnostic-only Huawei/Honor profile and automatic diagnostic fallback outside Android 12-17.
+- Kept Google Pixel as the primary profile with the fastest evidence-based detection and strict Bluetooth process validation.
+- Made non-Pixel process detection tolerant of vendor-specific Bluetooth process names.
+- Expanded the Action screen and `verify.sh` with profile, service, recovery-policy, storage and Bluetooth health information.
+- Added installation, verification and profile-selection coverage to the automated tests.
+
 ## v1.1.0
 - Rebuilt the watchdog around fresh, concrete fault evidence instead of app-name matches or elapsed session time.
 - Fixed the Android 17 profile that could toggle Bluetooth after eight minutes of otherwise healthy use.
@@ -10,7 +23,7 @@
 - Limited default app targeting to the confirmed Pokémon GO and Pokemod packages.
 - Replaced executable shared-storage configuration sourcing with a restricted scalar override parser.
 - Added original-value backup and uninstall restoration for optional global settings, properties, and idle-whitelist entries.
-- Removed ineffective dumpsys “keepalive” polling from the default profile and reduced watchdog overhead.
+- Removed ineffective dumpsys “keepalive” polling and reduced watchdog overhead.
 - Centralised displayed version strings and corrected stale v1.0.4 labels.
 
 ## v1.0.5

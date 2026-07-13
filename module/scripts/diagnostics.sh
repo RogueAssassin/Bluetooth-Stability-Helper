@@ -2,6 +2,7 @@
 MODDIR=${MODDIR:-${0%/*}/..}
 . "$MODDIR/common/config.sh"
 . "$MODDIR/scripts/lib.sh"
+apply_device_profile
 load_user_config "$LOCAL_USER_CONFIG"
 OUT="$EXPORT_DIR/status.txt"
 mkdir -p "$EXPORT_DIR" "$LOG_DIR" "$CONFIG_DIR" "$STATE_DIR"
@@ -11,7 +12,9 @@ mkdir -p "$EXPORT_DIR" "$LOG_DIR" "$CONFIG_DIR" "$STATE_DIR"
  echo "Version: $(module_version)"
 echo "Build ID: $(getprop ro.build.id 2>/dev/null)"
 echo "Fingerprint: $(getprop ro.build.fingerprint 2>/dev/null)"
- echo "Profile: adaptive Bluetooth stability engine"
+ echo "Profile: ${PROFILE_LABEL:-$(device_profile_id)}"
+ echo "Recovery policy: ${FAILURE_THRESHOLD} faults/${FAILURE_WINDOW_SECONDS}s; max ${MAX_RESTARTS_PER_HOUR}/hour; cooldown ${RECOVERY_COOLDOWN}s"
+ echo "Automatic adapter recovery: $ENABLE_ADAPTER_TOGGLE_RECOVERY"
  echo "Config dir: $CONFIG_DIR"
  echo "Brand: $(getprop ro.product.brand)"
  echo "Manufacturer: $(getprop ro.product.manufacturer)"
@@ -46,9 +49,8 @@ echo "Fingerprint: $(getprop ro.build.fingerprint 2>/dev/null)"
  dumpsys bluetooth_manager 2>/dev/null | grep -E "enabled:|state:|name:|address:|quiet|callback|profile" | head -n 32
  echo
  echo "Bluetooth processes:"
- for name in com.android.bluetooth android.hardware.bluetooth@1.0-service android.hardware.bluetooth-service android.hardware.bluetooth.audio-service vendor.qti.bluetooth@1.0-service vendor.bluetooth_service; do
-   if pidof "$name" >/dev/null 2>&1; then echo "  alive: $name"; else echo "  missing: $name"; fi
- done
+ echo "  detected_count=$(bt_process_count)"
+ ps -A 2>/dev/null | grep -iE 'com\.android\.bluetooth|android\.hardware\.bluetooth|vendor\..*bluetooth' | head -n 24
  echo
  echo "Pokémon GO / Pokemod / VPGP³+ / Bluetooth game package-name checks and appops:"
  seen=""
@@ -72,6 +74,7 @@ echo "Recent Bluetooth/location/VPGP³+/game logs:"
 cp "$OUT" "$LOCAL_STATUS_FILE" 2>/dev/null
 tail -n 80 "$LOG_DIR/bt-stability.log" > "$EXPORT_DIR/log-tail.txt" 2>/dev/null
 cp "$LOCAL_USER_CONFIG" "$EXPORT_DIR/user-config.sh" 2>/dev/null
-
+cp "$CONFIG_DIR/install-report.txt" "$EXPORT_DIR/install-report.txt" 2>/dev/null
+MODDIR="$MODDIR" sh "$MODDIR/verify.sh" > "$EXPORT_DIR/verification.txt" 2>&1
 cp "$CONFIG_DIR/metrics/bluetooth-health.json" "$EXPORT_DIR/bluetooth-health.json" 2>/dev/null
 tail -n 60 "$CONFIG_DIR/metrics/recovery-history.jsonl" > "$EXPORT_DIR/recovery-history.jsonl" 2>/dev/null

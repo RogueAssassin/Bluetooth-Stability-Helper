@@ -1,5 +1,30 @@
 #!/system/bin/sh
+
 apply_profile_pixel() {
-  log "Applying Pixel profile"
-  apply_profile_generic
+  apply_profile_generic_defaults
+  PROFILE_ID="pixel"
+  PROFILE_LABEL="Google Pixel primary"
+  WATCHDOG_INTERVAL=25
+  FAILURE_THRESHOLD=2
+  FAILURE_WINDOW_SECONDS=180
+  RECOVERY_COOLDOWN=600
+  MAX_RESTARTS_PER_HOUR=2
+  STALE_SESSION_MINUTES=20
+  ENABLE_STRICT_BT_PROCESS_CHECK=1
+
+  if [ "$ENABLE_PIXEL_ANDROID17_GUARD" = 1 ] && is_pixel_android17; then
+    WATCHDOG_INTERVAL="$PIXEL_ANDROID17_WATCHDOG_INTERVAL"
+    RECOVERY_COOLDOWN="$PIXEL_ANDROID17_RECOVERY_COOLDOWN"
+    STALE_SESSION_MINUTES="$PIXEL_ANDROID17_STALE_SESSION_MINUTES"
+    FAILURE_THRESHOLD="$PIXEL_ANDROID17_FAILURE_THRESHOLD"
+    log "Pixel Android 17 guard: build=$(build_id) known_family=$(is_known_pixel_android17_build_family && echo yes || echo no)"
+  elif [ "$ENABLE_PIXEL_MAY2026_CP1A_GUARD" = 1 ] && is_pixel_android16_may2026; then
+    WATCHDOG_INTERVAL="$PIXEL_CP1A_WATCHDOG_INTERVAL"
+    RECOVERY_COOLDOWN="$PIXEL_CP1A_RECOVERY_COOLDOWN"
+    STALE_SESSION_MINUTES="$PIXEL_CP1A_STALE_SESSION_MINUTES"
+    FAILURE_THRESHOLD="$PIXEL_CP1A_FAILURE_THRESHOLD"
+    ENABLE_ANDROID16_BOND_LOSS_OBSERVE=1
+    log "Pixel Android 16 CP1A guard: build=$(build_id)"
+  fi
+  log "Device profile: $PROFILE_LABEL"
 }

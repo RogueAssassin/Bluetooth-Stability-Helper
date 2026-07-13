@@ -151,8 +151,23 @@ is_pixel_android17_july2026_cp2a() { is_pixel_android17 || return 1; bid="$(buil
 brand_lc() { getprop ro.product.brand 2>/dev/null | tr '[:upper:]' '[:lower:]'; }
 manufacturer_lc() { getprop ro.product.manufacturer 2>/dev/null | tr '[:upper:]' '[:lower:]'; }
 is_pixel_device() { [ "$(brand_lc)" = "google" ] || echo "$(getprop ro.product.model 2>/dev/null)" | grep -qi '^pixel'; }
-is_samsung_device() { [ "$(manufacturer_lc)" = "samsung" ] || [ "$(brand_lc)" = "samsung" ]; }
-is_miui_device() { getprop ro.miui.ui.version.name 2>/dev/null | grep -q . || [ "$(brand_lc)" = "xiaomi" ] || [ "$(brand_lc)" = "redmi" ] || [ "$(brand_lc)" = "poco" ]; }
+device_profile_id() {
+  brand=$(brand_lc); maker=$(manufacturer_lc); model=$(getprop ro.product.model 2>/dev/null | tr '[:upper:]' '[:lower:]')
+  all="$brand $maker $model"
+  case "$all" in
+    *google*|*pixel*) echo pixel ;;
+    *samsung*) echo samsung ;;
+    *xiaomi*|*redmi*|*poco*) echo xiaomi ;;
+    *oneplus*|*oppo*|*realme*) echo oplus ;;
+    *nothing*) echo nothing ;;
+    *motorola*|*moto\ *) echo motorola ;;
+    *asus*|*rog\ phone*) echo asus ;;
+    *sony*|*xperia*) echo sony ;;
+    *vivo*|*iqoo*) echo vivo ;;
+    *huawei*|*honor*) echo huawei ;;
+    *) echo generic ;;
+  esac
+}
 recent_bt_stall_score_penalty() {
   active_bluetooth_game >/dev/null 2>&1 || { echo 0; return; }
   last=$(cat "$STATE_DIR/last-fresh-fault-epoch" 2>/dev/null); now=$(date +%s)
@@ -192,38 +207,34 @@ EOF
 check_android_support() { [ "$ENABLE_ANDROID_VERSION_WARNINGS" = 1 ] || return; sdk=$(sdk_int); [ -z "$sdk" ] && return; if [ "$sdk" -lt "$SUPPORTED_SDK_MIN" ] || [ "$sdk" -gt "$SUPPORTED_SDK_MAX" ]; then log "Android SDK warning: sdk=$sdk outside tested range $SUPPORTED_SDK_MIN-$SUPPORTED_SDK_MAX"; fi; }
 apply_device_profile() {
   [ "$ENABLE_SDK_AWARE_TUNING" = 1 ] || return
+  profile=$(device_profile_id)
   sdk=$(sdk_int)
-  if is_pixel_device && [ "$ENABLE_PIXEL_TUNING" = 1 ]; then
-    log "Device profile: Pixel/Google"
-    APPLY_RESTRICTED_STANDBY_FIXES=1
-    [ "$sdk" -ge "$ANDROID16_SDK" ] && [ "$ENABLE_PIXEL_ANDROID16_GUARDS" = 1 ] && { WATCHDOG_INTERVAL=25; FAILURE_THRESHOLD=2; log "Android 16+ Pixel guards active"; }
-    if [ "$ENABLE_PIXEL_ANDROID17_GUARD" = 1 ] && is_pixel_android17; then
-      WATCHDOG_INTERVAL="$PIXEL_ANDROID17_WATCHDOG_INTERVAL"
-      RECOVERY_COOLDOWN="$PIXEL_ANDROID17_RECOVERY_COOLDOWN"
-      STALE_SESSION_MINUTES="$PIXEL_ANDROID17_STALE_SESSION_MINUTES"
-      FAILURE_THRESHOLD="$PIXEL_ANDROID17_FAILURE_THRESHOLD"
-      COMPANION_DEVICE_KEEPALIVE_INTERVAL="$ANDROID17_COMPANION_KEEPALIVE_INTERVAL"
-      GMS_LOCATION_KEEPALIVE_INTERVAL="$ANDROID17_GMS_LOCATION_KEEPALIVE_INTERVAL"
-      ENABLE_ANDROID17_COMPANION_PERMISSION_OBSERVE=1
-      ENABLE_ANDROID17_BLE_PRIVACY_GUARD=1
-      log "Pixel Android 17 guard active: build=$(build_id) sdk=$(sdk_int) known_family=$(is_known_pixel_android17_build_family && echo yes || echo no) july_cp2a=$(is_pixel_android17_july2026_cp2a && echo yes || echo no) interval=${WATCHDOG_INTERVAL}s stale=${STALE_SESSION_MINUTES}m"
-    elif [ "$ENABLE_PIXEL_MAY2026_CP1A_GUARD" = 1 ] && is_pixel_android16_may2026; then
-      WATCHDOG_INTERVAL="$PIXEL_CP1A_WATCHDOG_INTERVAL"
-      RECOVERY_COOLDOWN="$PIXEL_CP1A_RECOVERY_COOLDOWN"
-      STALE_SESSION_MINUTES="$PIXEL_CP1A_STALE_SESSION_MINUTES"
-      FAILURE_THRESHOLD="$PIXEL_CP1A_FAILURE_THRESHOLD"
-      ENABLE_ANDROID16_BOND_LOSS_OBSERVE=1
-      ENABLE_ANDROID16_COMPANION_DEVICE_OBSERVE=1
-      log "Pixel Android 16 May 2026 CP1A guard active: build=$(build_id) interval=${WATCHDOG_INTERVAL}s stale=${STALE_SESSION_MINUTES}m"
-    fi
-  elif is_samsung_device && [ "$ENABLE_SAMSUNG_TUNING" = 1 ]; then
-    log "Device profile: Samsung"
-    APPLY_RESTRICTED_STANDBY_FIXES=1
-  elif is_miui_device && [ "$ENABLE_MIUI_TUNING" = 1 ]; then
-    log "Device profile: MIUI/Xiaomi/Redmi/Poco"
-    ENABLE_DEVICE_IDLE_TUNING=1
-    APPLY_RESTRICTED_STANDBY_FIXES=1
-  else
-    log "Device profile: generic"
-  fi
+  case "$sdk" in
+    ''|*[!0-9]*) profile="unsupported" ;;
+    *) [ "$sdk" -ge "$SUPPORTED_SDK_MIN" ] && [ "$sdk" -le "$SUPPORTED_SDK_MAX" ] || profile="unsupported" ;;
+  esac
+  . "$MODDIR/common/profiles/generic.sh"
+  profile_file="$MODDIR/common/profiles/$profile.sh"
+  [ -f "$profile_file" ] && . "$profile_file"
+  case "$profile" in
+    pixel) apply_profile_pixel ;;
+    samsung) apply_profile_samsung ;;
+    xiaomi) apply_profile_xiaomi ;;
+    oplus) apply_profile_oplus ;;
+    nothing) apply_profile_nothing ;;
+    motorola) apply_profile_motorola ;;
+    asus) apply_profile_asus ;;
+    sony) apply_profile_sony ;;
+    vivo) apply_profile_vivo ;;
+    huawei) apply_profile_huawei ;;
+    unsupported)
+      apply_profile_generic
+      PROFILE_ID="unsupported"
+      PROFILE_LABEL="Unsupported Android diagnostic fallback"
+      ENABLE_ADAPTER_TOGGLE_RECOVERY=0
+      APPLY_RESTRICTED_STANDBY_FIXES=0
+      log "Android version outside validated range; automatic recovery disabled"
+      ;;
+    *) apply_profile_generic ;;
+  esac
 }

@@ -1,11 +1,26 @@
 #!/system/bin/sh
+
+apply_profile_generic_defaults() {
+  WATCHDOG_INTERVAL=30
+  FAILURE_THRESHOLD=3
+  FAILURE_WINDOW_SECONDS=240
+  RECOVERY_COOLDOWN=900
+  MAX_RESTARTS_PER_HOUR=1
+  STALE_SESSION_MINUTES=30
+  ENABLE_STRICT_BT_PROCESS_CHECK=0
+  ENABLE_ADAPTER_TOGGLE_RECOVERY=1
+  APPLY_RESTRICTED_STANDBY_FIXES=1
+  ENABLE_DEVICE_IDLE_TUNING=0
+  ENABLE_A2DP_OFFLOAD_DISABLE=0
+  ENABLE_BLE_SCAN_ALWAYS=0
+  ENABLE_WIFI_SCAN_THROTTLE_OFF=0
+  ENABLE_LOCATION_BG_THROTTLE_OFF=0
+  APPLY_APP_OPS_FIXES=0
+}
+
 apply_profile_generic() {
-  log "Applying generic profile"
-  [ "$ENABLE_BLE_SCAN_ALWAYS" = "1" ] && settings put global ble_scan_always_enabled 1
-  [ "$ENABLE_WIFI_SCAN_THROTTLE_OFF" = "1" ] && settings put global wifi_scan_throttle_enabled 0
-  [ "$ENABLE_LOCATION_BG_THROTTLE_OFF" = "1" ] && settings put global location_background_throttle_interval_ms 0
-  if [ "$ENABLE_DEVICE_IDLE_TUNING" = "1" ]; then
-    settings put global device_idle_constants "$DEVICE_IDLE_CONSTANTS"
-    log "Applied device idle constants"
-  fi
+  apply_profile_generic_defaults
+  PROFILE_ID="generic"
+  PROFILE_LABEL="Generic Android safe fallback"
+  log "Device profile: $PROFILE_LABEL"
 }
