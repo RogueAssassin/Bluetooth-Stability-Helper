@@ -67,9 +67,13 @@ getprop() {
     ro.product.brand) echo "$MOCK_BRAND" ;;
     ro.product.manufacturer) echo "$MOCK_MAKER" ;;
     ro.product.model) echo "$MOCK_MODEL" ;;
+    ro.product.device) echo pixel8 ;;
     ro.build.version.sdk) echo "$MOCK_SDK" ;;
     ro.build.id) echo "$MOCK_BUILD" ;;
     ro.build.fingerprint) echo "$MOCK_BRAND/$MOCK_MODEL/$MOCK_BUILD" ;;
+    ro.build.version.release) echo 17 ;;
+    ro.build.version.security_patch) echo 2026-07-05 ;;
+    sys.boot_completed) echo 1 ;;
     *) echo "" ;;
   esac
 }
