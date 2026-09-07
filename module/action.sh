@@ -7,7 +7,10 @@ USERCFG="$LOCAL_USER_CONFIG"
 mkdir -p "$EXPORT_DIR" "$IMPORT_DIR" "$LOG_DIR" "$STATE_DIR"
 . "$MODDIR/scripts/lib.sh"
 . "$MODDIR/scripts/telemetry.sh"
+. "$MODDIR/scripts/manager_api.sh"
 telemetry_init
+manager_api_init
+manager_api_write_status
 
 [ -f "$USERCFG" ] || cat > "$USERCFG" <<'EOF'
 # Bluetooth Stability Helper local overrides.
