@@ -101,7 +101,7 @@ manager_api_write_status() {
   mkdir -p "$API_DIR" 2>/dev/null || return 1
   metrics_dir="${CONFIG_DIR:-/sdcard/Bluetooth-Stability-Helper}/metrics"
   api_status_tmp="$API_STATUS_FILE.tmp"
-  score=$(bluetooth_health_score 2>/dev/null); [ -n "$score" ] || score=0
+  score=$(bluetooth_health_score 2>/dev/null); case "$score" in ''|*[!0-9]*) score=0 ;; esac
   profile="${PROFILE_ID:-$(device_profile_id 2>/dev/null)}"; [ -n "$profile" ] || profile=unknown
   state=$(recovery_state 2>/dev/null); [ -n "$state" ] || state=UNKNOWN
   fault=$(cat "${STATE_DIR:-/sdcard/Bluetooth-Stability-Helper/state}/last-fault-type" 2>/dev/null); [ -n "$fault" ] || fault=none
@@ -133,7 +133,7 @@ manager_api_write_status() {
   "last_recovery_outcome": "$(manager_api_json_escape "$outcome")",
   "bluetooth_enabled": "$(bt_enabled_setting 2>/dev/null)",
   "bluetooth_process_count": "$(bt_process_count 2>/dev/null)",
-  "watchdog_heartbeat_age_seconds": $(manager_api_heartbeat_age),
+  "watchdog_heartbeat_age_seconds": "$(manager_api_heartbeat_age)",
   "android_sdk": "$(sdk_int 2>/dev/null)",
   "android_release": "$(manager_api_json_escape "$(getprop ro.build.version.release 2>/dev/null)")",
   "brand": "$(manager_api_json_escape "$(getprop ro.product.brand 2>/dev/null)")",
