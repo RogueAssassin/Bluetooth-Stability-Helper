@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.5.0-testing
+## v1.5.0
 - Introduced the first native Bluetooth Stability Helper companion app under `companion-app/`.
 - Added a Rogue-styled Android dashboard for health score, recovery state, OEM profile, Bluetooth process state and watchdog heartbeat.
 - Added a recent-event timeline backed by bounded `metrics/events.jsonl` telemetry.
@@ -8,7 +8,8 @@
 - Kept the companion app read-only; recovery remains entirely inside the Magisk module.
 - Added root-mediated reads of fixed BSH runtime files without broad storage permissions or arbitrary shell input.
 - Reused the supplied full-quality BSH logo directly as the companion-app identity.
-- Added a dedicated GitHub Actions workflow that builds and uploads a debug companion APK from `testing`.
+- Bundled the companion APK into the Magisk package and added install/update handling during module installation.
+- Updated CI/release packaging so the module ZIP and release artifacts include the companion APK.
 - Kept manager API schema version 1 compatible with the existing contract.
 
 ## v1.4.0-testing
