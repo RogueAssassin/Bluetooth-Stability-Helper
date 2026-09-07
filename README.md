@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/branding/banner.svg" width="920" alt="Bluetooth Stability Helper — Rogue ecosystem banner">
+<img src="assets/BSH-Bluetooth-Stability-Helper-Banner.png" width="920" alt="Bluetooth Stability Helper — Rogue ecosystem banner">
 
 # Bluetooth Stability Helper
 
@@ -142,9 +142,12 @@ The installer distinguishes a clean installation from an upgrade, validates ever
 
 ## Project assets
 
-- `assets/logo.png` — current README logo.
-- `assets/promo.png` — full promo graphic.
-- `assets/banner.png` — wide banner graphic.
+The uploaded full-quality PNG artwork is the canonical project branding:
+
+- `assets/BSH-Bluetooth-Stability-Helper-Banner.png` — README and project banner.
+- `assets/BSH-Bluetooth-Stability-Helper-Logo.png` — primary BSH logo and future manager-app identity.
+
+Lower-quality legacy and temporary SVG branding has been removed so GitHub always renders the supplied originals.
 
 
 ## Current Pixel patch awareness
