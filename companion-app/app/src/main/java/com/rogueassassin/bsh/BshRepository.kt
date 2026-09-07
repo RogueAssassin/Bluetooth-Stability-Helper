@@ -51,9 +51,9 @@ object BshRepository {
 
         val error = when {
             status == null && parseError != null -> parseError
-            status == null -> "Module detected, but no manager API snapshot exists yet. Use the Magisk Action once or reboot to regenerate it."
+            status == null -> "Module detected and enabled, but its boot API has not published a snapshot yet. Reboot once after installation; the service should then publish automatically."
             !module.enabled -> "The module is installed but currently disabled in the root manager."
-            status.schema !in 1..2 -> "Unsupported manager API schema: " + status.schema
+            status.schema !in 1..3 -> "Unsupported manager API schema: " + status.schema
             else -> null
         }
 
