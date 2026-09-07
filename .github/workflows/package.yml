@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Read module version
         id: version
@@ -62,7 +62,7 @@ jobs:
         run: sh tests/run-tests.sh
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -141,13 +141,13 @@ jobs:
           unzip -p "${{ steps.version.outputs.zip_name }}" module.prop | grep -q '^updateJson='
 
       - name: Upload module build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: bt-stability-helper-v${{ steps.version.outputs.version }}
           path: ${{ steps.version.outputs.zip_name }}
 
       - name: Upload companion build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: bsh-companion-v${{ steps.version.outputs.version }}
           path: module/companion.apk
