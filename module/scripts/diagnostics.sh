@@ -108,7 +108,7 @@ done
 printf '{"schema":1,"module_version":"%s","created":"%s","privacy":"sanitized-support-bundle"}\n' "$(module_version)" "$(date '+%F %T')" > "$BUNDLE_DIR/manifest.json"
 for item in "$BUNDLE_DIR"/*; do
   [ -f "$item" ] || continue
-  sed -i -E 's/([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}/[REDACTED-MAC]/g' "$item" 2>/dev/null || true
+  sed -i -E 's/([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}/[REDACTED-MAC]/g; s/(android_id|serial|ssid|bssid)[=: ][^ ,"]+/\\1=[REDACTED]/Ig' "$item" 2>/dev/null || true
 done
 if command -v zip >/dev/null 2>&1; then
   (cd "$BUNDLE_DIR" && zip -qr "$BUNDLE_ZIP" .) 2>/dev/null && rm -rf "$BUNDLE_DIR"
