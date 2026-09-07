@@ -2,8 +2,15 @@ name: Build and Release Module
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+    paths:
+      - 'module/**'
+      - 'companion-app/**'
+      - 'tests/**'
+      - 'update.json'
+      - 'CHANGELOG.md'
+      - '.github/workflows/release.yml'
   workflow_dispatch:
 
 permissions:
@@ -48,16 +55,16 @@ jobs:
           assert 'updateJson=' in Path('module/module.prop').read_text(), 'module.prop missing updateJson'
           PY
 
-      - name: Verify tag matches module version
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Verify stable release version
         shell: bash
         run: |
-          TAG="${GITHUB_REF_NAME}"
-          EXPECTED="v${{ steps.version.outputs.version }}"
-          if [ "$TAG" != "$EXPECTED" ]; then
-            echo "Tag $TAG does not match module version $EXPECTED"
-            exit 1
-          fi
+          VERSION="${{ steps.version.outputs.version }}"
+          case "$VERSION" in
+            *-testing|*-alpha*|*-beta*|*-rc*)
+              echo "Refusing to publish prerelease version $VERSION from main"
+              exit 1
+              ;;
+          esac
 
       - name: Validate shell scripts
         shell: bash
@@ -119,11 +126,38 @@ jobs:
         shell: bash
         run: sha256sum "${{ steps.version.outputs.zip_name }}" > "${{ steps.version.outputs.zip_name }}.sha256"
 
+      - name: Create version tag
+        id: tag
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="v${{ steps.version.outputs.version }}"
+          git fetch --tags --force
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            TAG_SHA=$(git rev-list -n 1 "$TAG")
+            if [ "$TAG_SHA" != "$GITHUB_SHA" ]; then
+              echo "Tag $TAG already exists at $TAG_SHA and does not point to $GITHUB_SHA"
+              exit 1
+            fi
+            echo "Tag $TAG already points to this commit"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$TAG" "$GITHUB_SHA" -m "Bluetooth Stability Helper $TAG"
+            git push origin "$TAG"
+            echo "Created and pushed $TAG"
+          fi
+          echo "name=$TAG" >> "$GITHUB_OUTPUT"
+
       - name: Create or update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: Bluetooth Stability Helper v${{ steps.version.outputs.version }}
-          tag_name: v${{ steps.version.outputs.version }}
+          tag_name: ${{ steps.tag.outputs.name }}
+          target_commitish: ${{ github.sha }}
           files: |
             ${{ steps.version.outputs.zip_name }}
             ${{ steps.version.outputs.zip_name }}.sha256
