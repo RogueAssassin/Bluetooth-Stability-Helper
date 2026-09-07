@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - main
       - testing
     paths:
       - 'companion-app/**'
@@ -27,7 +28,16 @@ jobs:
       - name: Build debug APK
         working-directory: companion-app
         run: gradle :app:assembleDebug --stacktrace
+      - name: Stage module companion payload
+        shell: bash
+        run: |
+          cp companion-app/app/build/outputs/apk/debug/app-debug.apk module/companion.apk
+          test -s module/companion.apk
       - uses: actions/upload-artifact@v4
         with:
           name: bsh-companion-debug
           path: companion-app/app/build/outputs/apk/debug/app-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bsh-module-companion-payload
+          path: module/companion.apk
