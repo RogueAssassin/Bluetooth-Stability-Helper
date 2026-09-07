@@ -30,6 +30,9 @@ grep -q '^EVENT_HISTORY_MAX_LINES=500$' "$MODDIR/common/config.sh"
 grep -Fq 'echo "$$" > "$STATE_DIR/service.pid"' "$MODDIR/service.sh"
 grep -Fq 'verify_recovery_outcome()' "$MODDIR/service.sh"
 [ -f "$MODDIR/scripts/telemetry.sh" ]
+[ -f "$MODDIR/scripts/manager_api.sh" ]
+grep -q '^MANAGER_API_ENABLED=1$' "$MODDIR/common/config.sh"
+grep -q '^MANAGER_API_REFRESH_SECONDS=30$' "$MODDIR/common/config.sh"
 grep -q '^APPLY_APP_OPS_FIXES=0$' "$MODDIR/common/config.sh"
 ! grep -q '\[ -f "$USERCFG" \] && \. "$USERCFG"' "$MODDIR/service.sh"
 ! grep -q '\[ -f "$LOCAL_USER_CONFIG" \] && \. "$LOCAL_USER_CONFIG"' "$MODDIR/scripts/diagnostics.sh"
@@ -51,6 +54,7 @@ STATE_DIR="$tmp/state"; CONFIG_DIR="$tmp/config"; LOG="$tmp/test.log"
 . "$MODDIR/scripts/lib.sh"
 . "$MODDIR/scripts/telemetry.sh"
 telemetry_init
+. "$MODDIR/scripts/manager_api.sh"
 reset_test_paths() { STATE_DIR="$tmp/state"; CONFIG_DIR="$tmp/config"; LOG="$tmp/test.log"; }
 
 MOCK_BRAND=google; MOCK_MAKER=Google; MOCK_MODEL='Pixel 8'; MOCK_SDK=37; MOCK_BUILD=CP2A.260705.006
@@ -132,6 +136,19 @@ record_event "test" "info" "tests" "hello" "" ""
 grep -q '"type":"test"' "$EVENT_HISTORY_FILE"
 set_recovery_state "SUSPECT"
 [ "$(recovery_state)" = SUSPECT ]
+
+# v1.4 manager contract is read-only, versioned and emits atomic JSON snapshots.
+API_DIR="$tmp/api"
+API_STATUS_FILE="$API_DIR/status.json"
+API_CAPABILITIES_FILE="$API_DIR/capabilities.json"
+API_CONFIG_SCHEMA_FILE="$API_DIR/config-schema.json"
+API_LAST_REFRESH_FILE="$STATE_DIR/manager-api-last-refresh"
+manager_api_init
+manager_api_write_status
+grep -q '"schema": 1' "$API_STATUS_FILE"
+grep -q '"read_only": true' "$API_CAPABILITIES_FILE"
+grep -q '"remote_commands": false' "$API_CAPABILITIES_FILE"
+grep -q '"WATCHDOG_INTERVAL"' "$API_CONFIG_SCHEMA_FILE"
 
 # Exercise the modern top-level installer with a temporary Pixel payload.
 install_root="$tmp/install-module"
