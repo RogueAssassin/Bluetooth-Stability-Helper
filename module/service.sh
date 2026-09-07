@@ -451,7 +451,7 @@ EOF
 }
 
 main_loop() {
-  echo "$" > "$STATE_DIR/service.pid" 2>/dev/null
+  echo "$$" > "$STATE_DIR/service.pid" 2>/dev/null
   echo "$(date +%s)" > "$STATE_DIR/service-start-time" 2>/dev/null
   set_recovery_state "HEALTHY"
   while true; do
