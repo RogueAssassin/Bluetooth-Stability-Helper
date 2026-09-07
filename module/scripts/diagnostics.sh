@@ -2,6 +2,8 @@
 MODDIR=${MODDIR:-${0%/*}/..}
 . "$MODDIR/common/config.sh"
 . "$MODDIR/scripts/lib.sh"
+. "$MODDIR/scripts/telemetry.sh"
+telemetry_init
 apply_device_profile
 load_user_config "$LOCAL_USER_CONFIG"
 OUT="$EXPORT_DIR/status.txt"
@@ -14,6 +16,9 @@ echo "Build ID: $(getprop ro.build.id 2>/dev/null)"
 echo "Fingerprint: $(getprop ro.build.fingerprint 2>/dev/null)"
  echo "Profile: ${PROFILE_LABEL:-$(device_profile_id)}"
  echo "Recovery policy: ${FAILURE_THRESHOLD} faults/${FAILURE_WINDOW_SECONDS}s; max ${MAX_RESTARTS_PER_HOUR}/hour; cooldown ${RECOVERY_COOLDOWN}s"
+ echo "Recovery state: $(recovery_state)"
+ echo "Last fault: $(cat "$STATE_DIR/last-fault-type" 2>/dev/null || echo none)"
+ echo "Last recovery outcome: $(last_recovery_outcome)"
  echo "Automatic adapter recovery: $ENABLE_ADAPTER_TOGGLE_RECOVERY"
  echo "Config dir: $CONFIG_DIR"
  echo "Brand: $(getprop ro.product.brand)"
@@ -83,3 +88,4 @@ cp "$CONFIG_DIR/install-report.txt" "$EXPORT_DIR/install-report.txt" 2>/dev/null
 MODDIR="$MODDIR" sh "$MODDIR/verify.sh" > "$EXPORT_DIR/verification.txt" 2>&1
 cp "$CONFIG_DIR/metrics/bluetooth-health.json" "$EXPORT_DIR/bluetooth-health.json" 2>/dev/null
 tail -n 60 "$CONFIG_DIR/metrics/recovery-history.jsonl" > "$EXPORT_DIR/recovery-history.jsonl" 2>/dev/null
+tail -n 120 "$CONFIG_DIR/metrics/events.jsonl" > "$EXPORT_DIR/events.jsonl" 2>/dev/null
