@@ -125,8 +125,9 @@ jobs:
           test -n "$BSH_SIGNING_CERT_SHA256" || { echo "Missing BSH_SIGNING_CERT_SHA256 repository secret"; exit 1; }
           APKSIGNER=$(find "$ANDROID_SDK_ROOT/build-tools" -type f -name apksigner | sort -V | tail -n1)
           test -n "$APKSIGNER" || { echo "Android apksigner not found under $ANDROID_SDK_ROOT/build-tools"; exit 1; }
-          ACTUAL=$("$APKSIGNER" verify --print-certs companion-app/app/build/outputs/apk/release/app-release.apk | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1 | tr '[:lower:]' '[:upper:]')
-          EXPECTED=$(printf '%s' "$BSH_SIGNING_CERT_SHA256" | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')
+          CERTS=$("$APKSIGNER" verify --print-certs companion-app/app/build/outputs/apk/release/app-release.apk 2>&1)
+          ACTUAL=$(printf '%s\n' "$CERTS" | grep -i -m1 'certificate SHA-256 digest' | sed 's/.*digest:[[:space:]]*//' | tr '[:lower:]' '[:upper:]')
+          EXPECTED=$(printf '%s' "$BSH_SIGNING_CERT_SHA256" | sed -E 's/^[[:space:]]*SHA-?256[=:[:space:]]*//I' | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')
           ACTUAL_NORM=$(printf '%s' "$ACTUAL" | tr -d ':[:space:]')
           test "$ACTUAL_NORM" = "$EXPECTED" || { echo "Signing certificate mismatch"; echo "Expected: $EXPECTED"; echo "Actual: $ACTUAL_NORM"; exit 1; }
           echo "sha256=$ACTUAL_NORM" >> "$GITHUB_OUTPUT"
