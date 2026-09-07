@@ -32,7 +32,11 @@ grep -Fq 'verify_recovery_outcome()' "$MODDIR/service.sh"
 [ -f "$MODDIR/scripts/telemetry.sh" ]
 [ -f "$MODDIR/scripts/manager_api.sh" ]
 grep -q '^MANAGER_API_ENABLED=1$' "$MODDIR/common/config.sh"
-grep -q '^MANAGER_API_REFRESH_SECONDS=30
+grep -q '^MANAGER_API_REFRESH_SECONDS=30$' "$MODDIR/common/config.sh"
+grep -q '^SERVICE_SELF_HEAL_ENABLED=1$' "$MODDIR/common/config.sh"
+grep -q '^SERVICE_SELF_HEAL_INTERVAL_SECONDS=120$' "$MODDIR/common/config.sh"
+grep -Fq 'service_self_check()' "$MODDIR/service.sh"
+grep -Fq 'INSTALL_FAILED_UPDATE_INCOMPATIBLE' "$MODDIR/scripts/install_utils.sh"
 grep -q '^APPLY_APP_OPS_FIXES=0$' "$MODDIR/common/config.sh"
 ! grep -q '\[ -f "$USERCFG" \] && \. "$USERCFG"' "$MODDIR/service.sh"
 ! grep -q '\[ -f "$LOCAL_USER_CONFIG" \] && \. "$LOCAL_USER_CONFIG"' "$MODDIR/scripts/diagnostics.sh"
