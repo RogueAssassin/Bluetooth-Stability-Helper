@@ -14,8 +14,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -68,11 +68,11 @@ jobs:
         run: |
           cp companion-app/app/build/outputs/apk/release/app-release.apk module/companion.apk
           test -s module/companion.apk
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: bsh-companion-signed
           path: companion-app/app/build/outputs/apk/release/app-release.apk
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: bsh-module-companion-payload
           path: module/companion.apk
