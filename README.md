@@ -140,13 +140,17 @@ The Magisk Action, companion app and `verify.sh` expose:
 - Companion Device and permission state
 - bounded diagnostics exports
 
+## v1.7 runtime reliability
+
+The watchdog now includes a low-overhead periodic runtime self-check for writable BSH state/metrics storage and the abnormal case where Bluetooth is enabled but no known Bluetooth process exists. It reports repeated degradation through bounded telemetry without bypassing the existing evidence threshold, cooldown or recovery caps.
+
 ## Companion app
 
 The native Android companion app lives in `companion-app/`. It does not replace the Magisk module or implement recovery itself.
 
 The app provides live module health and recovery state, OEM profile/build context, watchdog/Bluetooth state, a normalized event timeline and support status. It exposes no arbitrary shell console or generic root command channel.
 
-The app uses the schema-versioned read-only manager contract and reads only fixed BSH runtime paths through root. The canonical manager snapshot lives inside the Magisk module tree, with a best-effort shared-storage mirror for diagnostics. The module continues to operate normally if the app is not installed.
+The app uses the schema-versioned read-only manager contract and reads only fixed BSH runtime paths through root. Official v1.7+ APKs use one persistent signing identity across testing and stable releases, enforced by CI certificate verification. The canonical manager snapshot lives inside the Magisk module tree, with a best-effort shared-storage mirror for diagnostics. The module continues to operate normally if the app is not installed.
 
 ## Security and compatibility
 
@@ -165,6 +169,7 @@ The supplied full-quality PNG artwork is canonical:
 
 - **[Architecture](ARCHITECTURE.md)** — module lifecycle and data flow
 - **[Manager API](docs/MANAGER_API.md)** — companion-app contract and security boundary
+- **[Companion signing](docs/SIGNING.md)** — permanent signing identity and update guarantees
 - **[Companion app](companion-app/README.md)** — Android app structure, build and data access
 - **[Changelog](CHANGELOG.md)** — complete release history and current development changes
 - **[Contributing](CONTRIBUTING.md)** — contribution notes

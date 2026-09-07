@@ -33,6 +33,8 @@ RECOVERY_STATE_FILE="$STATE_DIR/recovery-state"
 LAST_RECOVERY_OUTCOME_FILE="$STATE_DIR/last-recovery-outcome"
 INTERACTION_FREEZE_FILE="$STATE_DIR/interaction_freeze_count"
 LAST_INTERACTION_RECOVERY_FILE="$STATE_DIR/last_interaction_recovery"
+SERVICE_HEALTH_FAILURE_FILE="$STATE_DIR/service-health-failures"
+LAST_SELF_HEAL_FILE="$STATE_DIR/last-self-heal"
 mkdir -p "$STATE_DIR" "$CONFIG_DIR" "$CONFIG_DIR/logs" "$EXPORT_DIR" "$CONFIG_DIR/import" "$CONFIG_DIR/metrics"
 . "$MODDIR/common/config.sh"
 . "$MODDIR/scripts/lib.sh"
@@ -42,6 +44,31 @@ telemetry_init
 [ "${MANAGER_API_ENABLED:-1}" = 1 ] && manager_api_init
 
 rotate_log_if_needed() { log_rotate_enforce 2>/dev/null; log_storage_guard 2>/dev/null; }
+
+service_self_check() {
+  [ "${SERVICE_SELF_HEAL_ENABLED:-1}" = 1 ] || return 0
+  now=$(date +%s)
+  last=$(cat "$LAST_SELF_HEAL_FILE" 2>/dev/null)
+  case "$last" in ''|*[!0-9]*) last=0 ;; esac
+  [ $((now-last)) -ge "${SERVICE_SELF_HEAL_INTERVAL_SECONDS:-120}" ] || return 0
+  echo "$now" > "$LAST_SELF_HEAL_FILE"
+
+  failures=0
+  [ -d "$STATE_DIR" ] && [ -w "$STATE_DIR" ] || failures=$((failures+1))
+  [ -d "$CONFIG_DIR/metrics" ] && [ -w "$CONFIG_DIR/metrics" ] || failures=$((failures+1))
+  [ "$(bt_enabled_setting)" = 1 ] && [ "$(bt_process_count)" -eq 0 ] && failures=$((failures+1))
+
+  previous=$(cat "$SERVICE_HEALTH_FAILURE_FILE" 2>/dev/null)
+  case "$previous" in ''|*[!0-9]*) previous=0 ;; esac
+  if [ "$failures" -gt 0 ]; then
+    previous=$((previous+1))
+    echo "$previous" > "$SERVICE_HEALTH_FAILURE_FILE"
+    [ "$previous" -eq "${SERVICE_SELF_HEAL_FAILURE_LIMIT:-3}" ] && record_event "service_health" "warning" "engine" "runtime self-check repeatedly degraded" "observe" "no forced restart"
+  else
+    [ "$previous" -gt 0 ] && record_event "service_health" "info" "engine" "runtime self-check recovered" "" "healthy"
+    echo 0 > "$SERVICE_HEALTH_FAILURE_FILE"
+  fi
+}
 
 cleanup_boot_logs() {
   [ "${LOG_BOOT_CLEAN:-1}" = "1" ] || return 0
@@ -458,7 +485,7 @@ main_loop() {
   set_recovery_state "HEALTHY"
   while true; do
     echo "$(date +%s)" > "$STATE_DIR/service-heartbeat" 2>/dev/null
-    rotate_log_if_needed; cleanup_restart_history; cap_runtime_files; ensure_files
+    rotate_log_if_needed; cleanup_restart_history; cap_runtime_files; ensure_files; service_self_check
     refresh_recovery_state
     . "$MODDIR/common/config.sh"; . "$MODDIR/scripts/lib.sh"; apply_adaptive_defaults
     bad=0

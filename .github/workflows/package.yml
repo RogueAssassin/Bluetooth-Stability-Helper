@@ -78,14 +78,46 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
-      - name: Build bundled companion APK
+      - name: Restore persistent BSH signing keystore
+        shell: bash
+        env:
+          BSH_SIGNING_KEYSTORE_BASE64: ${{ secrets.BSH_SIGNING_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          test -n "$BSH_SIGNING_KEYSTORE_BASE64" || { echo "Missing BSH_SIGNING_KEYSTORE_BASE64 repository secret"; exit 1; }
+          printf '%s' "$BSH_SIGNING_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/bsh-release.jks"
+          test -s "$RUNNER_TEMP/bsh-release.jks"
+
+      - name: Build signed companion APK
         working-directory: companion-app
-        run: gradle :app:assembleDebug --stacktrace
+        env:
+          BSH_SIGNING_STORE_FILE: ${{ runner.temp }}/bsh-release.jks
+          BSH_SIGNING_STORE_PASSWORD: ${{ secrets.BSH_SIGNING_STORE_PASSWORD }}
+          BSH_SIGNING_KEY_ALIAS: ${{ secrets.BSH_SIGNING_KEY_ALIAS }}
+          BSH_SIGNING_KEY_PASSWORD: ${{ secrets.BSH_SIGNING_KEY_PASSWORD }}
+        run: |
+          gradle :app:verifyBshSigningConfigured :app:assembleRelease --stacktrace
+          test -s app/build/outputs/apk/release/app-release.apk
+
+      - name: Verify APK signing certificate
+        id: signing
+        shell: bash
+        env:
+          BSH_SIGNING_CERT_SHA256: ${{ secrets.BSH_SIGNING_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          test -n "$BSH_SIGNING_CERT_SHA256" || { echo "Missing BSH_SIGNING_CERT_SHA256 repository secret"; exit 1; }
+          ACTUAL=$(apksigner verify --print-certs companion-app/app/build/outputs/apk/release/app-release.apk | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1 | tr '[:lower:]' '[:upper:]')
+          EXPECTED=$(printf '%s' "$BSH_SIGNING_CERT_SHA256" | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')
+          ACTUAL_NORM=$(printf '%s' "$ACTUAL" | tr -d ':[:space:]')
+          test "$ACTUAL_NORM" = "$EXPECTED" || { echo "Signing certificate mismatch"; echo "Expected: $EXPECTED"; echo "Actual: $ACTUAL_NORM"; exit 1; }
+          echo "sha256=$ACTUAL_NORM" >> "$GITHUB_OUTPUT"
+          echo "Verified persistent BSH certificate: $ACTUAL_NORM"
 
       - name: Stage companion APK in module
         shell: bash
         run: |
-          cp companion-app/app/build/outputs/apk/debug/app-debug.apk module/companion.apk
+          cp companion-app/app/build/outputs/apk/release/app-release.apk module/companion.apk
           test -s module/companion.apk
 
       - name: Create Magisk install zip

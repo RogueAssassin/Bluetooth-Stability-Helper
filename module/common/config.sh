@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# Bluetooth Stability Helper v1.3.0 defaults.
+# Bluetooth Stability Helper defaults.
 # Override in /sdcard/Bluetooth-Stability-Helper/user-config.sh
 # Design goal: one adaptive Bluetooth stability engine, Pixel-first, Pokémon GO/Pokemod aware.
 # v1.3.0 keeps evidence-based recovery: passive observation first, fresh
@@ -68,6 +68,9 @@ SERVICE_HEARTBEAT_STALE_SECONDS=180
 RECOVERY_POST_VERIFY_SECONDS=7
 MANAGER_API_ENABLED=1
 MANAGER_API_REFRESH_SECONDS=30
+SERVICE_SELF_HEAL_ENABLED=1
+SERVICE_SELF_HEAL_INTERVAL_SECONDS=120
+SERVICE_SELF_HEAL_FAILURE_LIMIT=3
 
 
 # Recovery ladder. Defaults diagnose first and only refresh after confirmed,

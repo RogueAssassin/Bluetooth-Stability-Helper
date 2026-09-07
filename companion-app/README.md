@@ -1,23 +1,32 @@
 # Bluetooth Stability Helper Companion
 
-The companion app is an optional native Android presentation and support layer for Bluetooth Stability Helper. It does **not** replace the Magisk module, perform Bluetooth recovery itself or expose a generic root shell.
+The companion is the optional native Android presentation/support layer for Bluetooth Stability Helper. Recovery remains entirely inside the root module.
 
-## Current screens
+## Screens
 
-- **Dashboard** — health score, recovery state, profile, Bluetooth process state, heartbeat, build and supported app/session state.
-- **Timeline** — newest bounded normalized events from `metrics/events.jsonl`.
-- **Support** — root/API availability, module version, profile and schema status.
+- **Overview** — root/module/API state, health score, recovery state, Bluetooth state and heartbeat.
+- **Activity** — newest bounded normalized engine events.
+- **Device** — profile, device, Android/build/security-patch and supported-app context.
+- **Support** — root provider, module enabled state, manager API schema/source and refresh state.
 
 ## Data access
 
-The app consumes manager API schema 1 and uses root only to read fixed BSH paths. It does not request broad shared-storage access and no user-provided value is executed as a root command.
+The app detects the module independently from `/data/adb/modules/btstabilityhelper/module.prop`, then reads the canonical private schema-2 API. It falls back to the shared-storage API mirror when needed. Schema 1 remains accepted for migration compatibility.
+
+Root access is restricted to fixed BSH paths. The app has no arbitrary shell UI and does not make Bluetooth recovery decisions.
+
+## Signing and updates
+
+Published companion APKs use one persistent BSH release certificate on both `testing` and `main`. CI fails if the signing identity is missing or changes. See [../docs/SIGNING.md](../docs/SIGNING.md).
+
+v1.5/v1.6 used disposable debug signing, so an already-installed old companion may need to be removed once before installing the permanently signed v1.7+ app.
 
 ## Build
 
-From `companion-app/` run:
+Release/package builds require the canonical signing environment:
 
 ```bash
-gradle :app:assembleDebug
+gradle :app:verifyBshSigningConfigured :app:assembleRelease
 ```
 
-GitHub Actions builds a debug APK for testing-branch app changes.
+Do not distribute a locally debug-signed APK as an update.

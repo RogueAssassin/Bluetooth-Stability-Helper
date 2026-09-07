@@ -1,32 +1,40 @@
 # Bluetooth Stability Helper Manager API
 
-Bluetooth Stability Helper exposes a small, read-only data contract for the optional companion app. The Magisk module remains the root-side engine and continues to work completely without the app.
+Bluetooth Stability Helper exposes a small, read-only data contract for the optional companion app. The Magisk module remains the root-side recovery engine and works without the app.
 
-## Runtime path
+## Runtime paths
+
+The canonical API is private to the root module:
 
 ```text
-/sdcard/Bluetooth-Stability-Helper/api/
+/data/adb/modules/btstabilityhelper/runtime/api/
 ├── status.json
 ├── capabilities.json
 └── config-schema.json
 ```
 
-The current API schema is **1** and is consumed by the native companion app.
+A best-effort human/support mirror is also written to:
+
+```text
+/sdcard/Bluetooth-Stability-Helper/api/
+```
+
+The current API schema is **2**. The v1.7 companion accepts schema 1 and 2 for migration compatibility.
 
 ## status.json
 
-A periodically refreshed snapshot intended for a manager dashboard. It exposes module version, selected OEM profile, Bluetooth health score, recovery state, last fault, last recovery outcome, Bluetooth adapter/process health, watchdog heartbeat age, Android/build information, active supported apps, and paths to bounded event/recovery metrics.
+The periodically refreshed atomic snapshot exposes module identity/version, selected OEM profile, Bluetooth health score, recovery state, last fault/recovery outcome, adapter/process health, watchdog heartbeat age, Android/build/security-patch information and active supported apps.
 
 ## capabilities.json
 
-Declares what the module exposes to a manager. The 1.4 contract is intentionally read-only. It does **not** expose arbitrary shell execution or remote root commands.
+Declares the read-only manager capabilities and the canonical/mirror locations. It explicitly disables arbitrary shell and remote command support.
 
 ## config-schema.json
 
-Documents the safe subset and min/max validation already enforced by the module's restricted `user-config.sh` parser. A future app can use this schema to render safe controls without guessing valid values.
+Documents the safe configuration subset and min/max validation enforced by the restricted `user-config.sh` parser. It is descriptive in v1.7; the app does not write root configuration.
 
 ## Security boundary
 
-The manager contract is a presentation and support layer, not a second recovery engine. Bluetooth decisions remain in the Magisk service. The companion app requests root only to read fixed Bluetooth Stability Helper API/telemetry paths. It does not expose arbitrary shell input, a terminal or a generic command bridge.
+The app requests root only for fixed BSH paths. Bluetooth decisions stay in the Magisk service. There is no terminal, generic command pipe, Zygisk/Xposed bridge or arbitrary user-provided root command.
 
-Future write support should use explicit, allow-listed actions and transactional config updates rather than a generic command pipe.
+Future write support must use explicit allow-listed actions and transactional configuration changes.

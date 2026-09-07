@@ -3,3 +3,10 @@
 .DS_Store
 .idea/
 .vscode/
+
+# Android signing material must never be committed
+*.jks
+*.keystore
+*.p12
+*.pfx
+signing.properties

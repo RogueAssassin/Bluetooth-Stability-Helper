@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.7.0
+- Established one persistent companion-app signing identity for both testing and stable releases.
+- Changed CI/package/release builds from disposable debug APKs to signed release APKs.
+- Added mandatory signing-secret validation and SHA-256 certificate fingerprint verification before packaging.
+- Added a hard CI failure when the signing identity is missing or changes, preventing accidental incompatible APK releases.
+- Documented the one-time migration required for v1.5/v1.6 debug-signed companion installations.
+- Improved module installer reporting for Android signature mismatch failures without removing app data automatically.
+- Added a lightweight two-minute service self-check for runtime state/metrics writability and abnormal Bluetooth-process loss.
+- Added bounded service-health telemetry while preserving the existing evidence-based recovery ladder and avoiding a second restart loop.
+- Extended runtime verification with service self-check status.
+- Removed stale version labels from module defaults and refreshed architecture, API, module, companion, signing and contribution documentation.
+
 ## v1.6.0
 - Fixed the companion app falsely reporting the module as missing when only the shared-storage manager API snapshot was unavailable.
 - Moved the canonical manager API to the private Magisk module tree under `/data/adb/modules/btstabilityhelper/runtime/api/`.

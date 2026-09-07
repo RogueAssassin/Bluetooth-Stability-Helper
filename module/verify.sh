@@ -65,6 +65,9 @@ echo "Recovery policy: ${FAILURE_THRESHOLD} faults/${FAILURE_WINDOW_SECONDS}s, m
 echo "Adapter recovery: $ENABLE_ADAPTER_TOGGLE_RECOVERY"
 echo "Recovery state: $(recovery_state)"
 echo "Last recovery outcome: $(last_recovery_outcome)"
+self_failures=$(cat "$STATE_DIR/service-health-failures" 2>/dev/null)
+case "$self_failures" in ''|*[!0-9]*) self_failures=0 ;; esac
+[ "$self_failures" -eq 0 ] && pass "runtime self-check healthy" || warning "runtime self-check degradation count: $self_failures"
 [ -s "$API_STATUS_FILE" ] && pass "manager API status snapshot available" || warning "manager API status snapshot unavailable"
 echo "Status: $CONFIG_DIR/status.txt"
 echo "Install report: $CONFIG_DIR/install-report.txt"

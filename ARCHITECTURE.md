@@ -81,10 +81,11 @@ flowchart LR
     Engine --> Metrics[metrics/]
     Engine --> Logs[logs/]
     Engine --> Status[status.txt]
-    Engine --> API[api/status.json]
+    Engine --> API[private runtime/api/status.json]
     State --> API
     Metrics --> API
     API --> App[Optional companion app]
+    API --> Mirror[best-effort /sdcard API mirror]
     Metrics --> Diag[Diagnostics]
     State --> Diag
     Logs --> Diag
@@ -152,6 +153,10 @@ Shared storage is never sourced as arbitrary root shell. Only documented scalar 
 The module does not add Zygisk, Xposed, ART hooks, remote command execution, Play Integrity spoofing or application injection.
 
 
+## Runtime resilience
+
+The v1.7 service performs a lightweight self-check every two minutes. It verifies writable state/metrics storage and watches for the specific case where Android reports Bluetooth enabled but no known Bluetooth process exists. Repeated degradation is recorded as bounded telemetry; the self-check does not independently restart Bluetooth or bypass the normal evidence/cooldown recovery ladder.
+
 ## Companion-app boundary
 
 ```mermaid
@@ -176,3 +181,8 @@ The manager contract is deliberately read-only. The included native Android app 
 The app reads only fixed BSH paths through `su`, so it does not need broad shared-storage permissions. Root denial, a missing module and schema mismatch are surfaced as app status.
 
 Future write support should use explicit allow-listed actions and transactional configuration changes rather than unrestricted shell execution. See [docs/MANAGER_API.md](docs/MANAGER_API.md).
+
+
+## Companion signing boundary
+
+The companion package is signed with one persistent BSH release identity across testing and stable builds. CI refuses to package an APK when the signing secrets are missing or the certificate SHA-256 does not match the configured canonical fingerprint. Private signing material is never stored in the repository. See [docs/SIGNING.md](docs/SIGNING.md).

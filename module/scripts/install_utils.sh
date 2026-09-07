@@ -4,6 +4,10 @@ BSH_ID="btstabilityhelper"
 BSH_OLD_MODPATH="/data/adb/modules/$BSH_ID"
 BSH_COMPANION_PACKAGE="com.rogueassassin.bsh"
 
+bsh_companion_signature() {
+  dumpsys package "$BSH_COMPANION_PACKAGE" 2>/dev/null | sed -n 's/.*SHA-256 digest: //p' | head -n1
+}
+
 bsh_prop() { getprop "$1" 2>/dev/null; }
 bsh_lc() { tr '[:upper:]' '[:lower:]'; }
 
@@ -179,6 +183,7 @@ bsh_write_install_report() {
     echo "Pokemon GO: $(bsh_package_state com.nianticlabs.pokemongo)"
     echo "Pokemod: $(bsh_package_state com.pokemod.app.public)"
     echo "Companion app before install: $(bsh_package_state "$BSH_COMPANION_PACKAGE")"
+    echo "Companion installed signature: $(bsh_companion_signature)"
   } > "$MODPATH/state/install-report.txt"
 }
 
@@ -243,6 +248,12 @@ bsh_install_companion_app() {
   case "$result" in
     *Success*|*success*)
       ui_print "- BSH Companion installed/updated"
+      ;;
+    *INSTALL_FAILED_UPDATE_INCOMPATIBLE*|*signatures*do*not*match*|*signature*)
+      ui_print "! Existing BSH Companion was signed by an older/different key"
+      ui_print "! Android will not replace an app signed by another certificate"
+      ui_print "! One-time migration: uninstall the existing BSH Companion, then reinstall this module"
+      ui_print "! The Magisk module, runtime configuration and diagnostics are preserved"
       ;;
     *)
       ui_print "! BSH Companion install was not completed automatically"
