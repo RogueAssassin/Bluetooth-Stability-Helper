@@ -518,5 +518,9 @@ cleanup_boot_logs
 log "Bluetooth Stability Helper $(module_version) adaptive engine start"
 apply_adaptive_defaults
 apply_static_tuning
+if [ "${MANAGER_API_ENABLED:-1}" = 1 ]; then
+  manager_api_init
+  manager_api_write_status
+fi
 [ "${RUN_DIAGNOSTICS_ON_BOOT:-0}" = "1" ] && MODDIR="$MODDIR" sh "$MODDIR/scripts/diagnostics.sh" >/dev/null 2>&1
 main_loop

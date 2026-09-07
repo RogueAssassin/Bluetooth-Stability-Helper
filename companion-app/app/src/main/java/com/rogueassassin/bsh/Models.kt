@@ -3,22 +3,24 @@ package com.rogueassassin.bsh
 import org.json.JSONObject
 
 data class BshStatus(
-    val schema: Int, val timestamp: String, val moduleVersion: String, val profile: String,
-    val healthScore: Int, val recoveryState: String, val lastFaultType: String,
-    val lastRecoveryOutcome: String, val bluetoothEnabled: String, val bluetoothProcessCount: String,
-    val heartbeatAgeSeconds: Long, val androidSdk: String, val buildId: String,
+    val schema: Int, val timestamp: String, val epoch: Long, val moduleVersion: String,
+    val profile: String, val healthScore: Int, val recoveryState: String,
+    val lastFaultType: String, val lastRecoveryOutcome: String, val bluetoothEnabled: String,
+    val bluetoothProcessCount: String, val heartbeatAgeSeconds: Long, val androidSdk: String,
+    val androidRelease: String, val device: String, val buildId: String,
     val securityPatch: String, val activePokemonGo: String, val activePokemod: String
 ) {
     companion object {
         fun parse(raw: String): BshStatus {
             val j = JSONObject(raw)
             return BshStatus(
-                j.optInt("schema", 0), j.optString("timestamp", "unknown"),
+                j.optInt("schema", 0), j.optString("timestamp", "unknown"), j.optLong("epoch", 0),
                 j.optString("module_version", "unknown"), j.optString("profile", "unknown"),
                 j.optInt("health_score", 0), j.optString("recovery_state", "UNKNOWN"),
                 j.optString("last_fault_type", "none"), j.optString("last_recovery_outcome", "none"),
                 j.optString("bluetooth_enabled", "unknown"), j.optString("bluetooth_process_count", "unknown"),
                 j.optLong("watchdog_heartbeat_age_seconds", -1), j.optString("android_sdk", "unknown"),
+                j.optString("android_release", "unknown"), j.optString("device", "unknown"),
                 j.optString("build_id", "unknown"), j.optString("security_patch", "unknown"),
                 j.optString("active_pokemon_go", "none"), j.optString("active_pokemod_vpgp3", "none")
             )
@@ -42,6 +44,14 @@ data class BshEvent(
     }
 }
 
+data class ModuleInfo(val detected: Boolean, val version: String, val enabled: Boolean)
+
 data class CompanionSnapshot(
-    val rootAvailable: Boolean, val status: BshStatus?, val events: List<BshEvent>, val error: String?
+    val rootAvailable: Boolean,
+    val rootProvider: String,
+    val module: ModuleInfo,
+    val status: BshStatus?,
+    val apiSource: String,
+    val events: List<BshEvent>,
+    val error: String?
 )

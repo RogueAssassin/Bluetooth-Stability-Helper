@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.6.0
+- Fixed the companion app falsely reporting the module as missing when only the shared-storage manager API snapshot was unavailable.
+- Moved the canonical manager API to the private Magisk module tree under `/data/adb/modules/btstabilityhelper/runtime/api/`.
+- Kept a best-effort mirror under `/sdcard/Bluetooth-Stability-Helper/api/` for human diagnostics and support.
+- Added independent module detection from `module.prop`, including enabled/disabled state, before any manager API lookup.
+- Added manager API fallback logic: private API first, shared-storage mirror second.
+- Bumped the manager API to schema 2 with explicit module/device/Android metadata while retaining app compatibility with schema 1.
+- Forced an API snapshot immediately after boot initialization instead of waiting for the first watchdog refresh interval.
+- Revamped the companion app into Overview, Activity, Device and Support surfaces.
+- Added ROOT / MODULE / API status indicators, a larger health state card, device/build details, API source reporting and clearer failure messages.
+- Added automatic 30-second app refresh while keeping manual refresh controls.
+- Kept recovery logic exclusively in the Magisk module and preserved the read-only app security boundary.
+
 ## v1.5.0
 - Introduced the first native Bluetooth Stability Helper companion app under `companion-app/`.
 - Added a Rogue-styled Android dashboard for health score, recovery state, OEM profile, Bluetooth process state and watchdog heartbeat.

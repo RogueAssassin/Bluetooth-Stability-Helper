@@ -1,7 +1,7 @@
 id=btstabilityhelper
 name=Bluetooth Stability Helper PRO
-version=1.5.0
-versionCode=1500
+version=1.6.0
+versionCode=1600
 author=RogueAssassin
-description=Pixel-first adaptive Bluetooth stability engine for Android 12-17 with bundled native companion app support, manager API, structured telemetry, verified recovery outcomes, persistent metrics, and conservative OEM profiles
+description=Pixel-first adaptive Bluetooth stability engine for Android 12-17 with resilient private manager API, bundled companion app, structured telemetry, verified recovery outcomes, persistent metrics, and conservative OEM profiles
 updateJson=https://raw.githubusercontent.com/RogueAssassin/Bluetooth-Stability-Helper/main/update.json

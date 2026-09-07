@@ -10,8 +10,8 @@ android {
         applicationId = "com.rogueassassin.bsh"
         minSdk = 31
         targetSdk = 36
-        versionCode = 1500
-        versionName = "1.5.0"
+        versionCode = 1600
+        versionName = "1.6.0"
     }
     buildTypes {
         release {

@@ -146,7 +146,7 @@ The native Android companion app lives in `companion-app/`. It does not replace 
 
 The app provides live module health and recovery state, OEM profile/build context, watchdog/Bluetooth state, a normalized event timeline and support status. It exposes no arbitrary shell console or generic root command channel.
 
-The app uses the schema-versioned read-only manager contract and reads only fixed BSH runtime paths through root. The module continues to operate normally if the app is not installed.
+The app uses the schema-versioned read-only manager contract and reads only fixed BSH runtime paths through root. The canonical manager snapshot lives inside the Magisk module tree, with a best-effort shared-storage mirror for diagnostics. The module continues to operate normally if the app is not installed.
 
 ## Security and compatibility
 
