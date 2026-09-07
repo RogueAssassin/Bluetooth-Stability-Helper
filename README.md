@@ -1,14 +1,34 @@
+<div align="center">
+
+<img src="assets/branding/bluetooth-stability-helper.svg" width="128" height="128" alt="Bluetooth Stability Helper monogram">
+
 # Bluetooth Stability Helper
 
-<p align="center">
-  <img src="assets/logo.png" alt="Bluetooth Stability Helper" width="420">
-</p>
-
 **Pixel-first Adaptive Bluetooth Stability Engine for Android**
+
+[![Release](https://img.shields.io/badge/TESTING-1.3.0-8b5cf6?style=for-the-badge&labelColor=45464d)](https://github.com/RogueAssassin/Bluetooth-Stability-Helper/tree/testing)
+[![Build](https://img.shields.io/github/actions/workflow/status/RogueAssassin/Bluetooth-Stability-Helper/package.yml?branch=testing&style=for-the-badge&label=BUILD&labelColor=45464d)](https://github.com/RogueAssassin/Bluetooth-Stability-Helper/actions/workflows/package.yml?query=branch%3Atesting)
+![Android](https://img.shields.io/badge/ANDROID-12--17-00cbe6?style=for-the-badge&labelColor=45464d)
+![Profile](https://img.shields.io/badge/PROFILE-PIXEL%20FIRST-42d6a4?style=for-the-badge&labelColor=45464d)
+
+</div>
 
 Bluetooth Stability Helper is a Magisk module designed to improve Android Bluetooth, BLE, GATT, Companion Device, location, and idle-service stability. It is built mainly for Google Pixel devices while retaining safer support for other Android brands.
 
 It is especially useful when Bluetooth-heavy apps are active, including **Pokémon GO**, **Pokemod from Pokemod.dev**, and **VPGP³+** style virtual accessory sessions.
+
+## 1.3.0 testing
+
+The 1.3 line focuses on observability and long-session reliability rather than more aggressive Android tweaks.
+
+- preserves recovery history and health metrics across reboot with bounded retention
+- adds watchdog PID/start/heartbeat state so a running-but-stalled service can be detected
+- validates numeric user overrides against safe ranges instead of accepting any integer
+- expands diagnostics with heartbeat age and persistent recovery history
+- begins the Rogue ecosystem branding refresh with a compact monogram and shared badge/header layout
+- keeps adapter recovery evidence-based and retains conservative OEM behaviour
+
+A future companion manager app is planned as an optional status, configuration and support-bundle surface. The root module remains fully functional without it and does not require Zygisk/Xposed hooks.
 
 ## Key features
 
