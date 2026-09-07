@@ -27,7 +27,7 @@ grep -q '^STALE_SESSION_BT_REFRESH=0$' "$MODDIR/common/config.sh"
 grep -q '^ENABLE_A2DP_OFFLOAD_DISABLE=0$' "$MODDIR/common/config.sh"
 grep -q '^METRICS_HISTORY_MAX_LINES=500$' "$MODDIR/common/config.sh"
 grep -q '^EVENT_HISTORY_MAX_LINES=500$' "$MODDIR/common/config.sh"
-grep -Fq 'echo "$" > "$STATE_DIR/service.pid"' "$MODDIR/service.sh"
+grep -Fq 'echo "$$" > "$STATE_DIR/service.pid"' "$MODDIR/service.sh"
 grep -Fq 'verify_recovery_outcome()' "$MODDIR/service.sh"
 [ -f "$MODDIR/scripts/telemetry.sh" ]
 grep -q '^APPLY_APP_OPS_FIXES=0$' "$MODDIR/common/config.sh"
