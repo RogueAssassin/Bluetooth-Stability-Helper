@@ -19,11 +19,11 @@ A best-effort human/support mirror is also written to:
 /sdcard/Bluetooth-Stability-Helper/api/
 ```
 
-The current API schema is **2**. The v1.7 companion accepts schema 1 and 2 for migration compatibility.
+The current API schema is **3**. The v1.8 companion accepts schemas 1–3 for migration compatibility.
 
 ## status.json
 
-The periodically refreshed atomic snapshot exposes module identity/version, selected OEM profile, Bluetooth health score, recovery state, last fault/recovery outcome, adapter/process health, watchdog heartbeat age, Android/build/security-patch information and active supported apps.
+The periodically refreshed atomic snapshot exposes module identity/version, BOOTING/READY service lifecycle and uptime, root/Zygisk environment, selected OEM profile, Bluetooth health score, recovery state, last fault/recovery outcome, adapter/process health, watchdog heartbeat age, Android/device/build/security-patch information, active supported apps, and the effective bounded watchdog/recovery settings.
 
 ## capabilities.json
 
