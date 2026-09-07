@@ -3,7 +3,10 @@ MODDIR=${MODDIR:-${0%/*}/..}
 . "$MODDIR/common/config.sh"
 . "$MODDIR/scripts/lib.sh"
 . "$MODDIR/scripts/telemetry.sh"
+. "$MODDIR/scripts/manager_api.sh"
 telemetry_init
+manager_api_init
+manager_api_write_status
 apply_device_profile
 load_user_config "$LOCAL_USER_CONFIG"
 OUT="$EXPORT_DIR/status.txt"
@@ -89,3 +92,7 @@ MODDIR="$MODDIR" sh "$MODDIR/verify.sh" > "$EXPORT_DIR/verification.txt" 2>&1
 cp "$CONFIG_DIR/metrics/bluetooth-health.json" "$EXPORT_DIR/bluetooth-health.json" 2>/dev/null
 tail -n 60 "$CONFIG_DIR/metrics/recovery-history.jsonl" > "$EXPORT_DIR/recovery-history.jsonl" 2>/dev/null
 tail -n 120 "$CONFIG_DIR/metrics/events.jsonl" > "$EXPORT_DIR/events.jsonl" 2>/dev/null
+
+cp "$API_STATUS_FILE" "$EXPORT_DIR/manager-status.json" 2>/dev/null
+cp "$API_CAPABILITIES_FILE" "$EXPORT_DIR/manager-capabilities.json" 2>/dev/null
+cp "$API_CONFIG_SCHEMA_FILE" "$EXPORT_DIR/manager-config-schema.json" 2>/dev/null
