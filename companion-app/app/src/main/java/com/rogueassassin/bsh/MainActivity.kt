@@ -1,6 +1,9 @@
 package com.rogueassassin.bsh
 
 import android.os.Bundle
+import android.content.Intent
+import android.net.Uri
+import androidx.core.content.FileProvider
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -21,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import java.io.File
 
 private val Bg = Color(0xFF090B10)
 private val Surface = Color(0xFF141821)
@@ -178,10 +182,23 @@ private fun Device(snapshot: CompanionSnapshot) {
         item { InfoCard("Module", if (snapshot.module.detected) "v" + snapshot.module.version else "Not detected") }
         item { InfoCard("Module state", if (snapshot.module.enabled) "Enabled" else "Disabled / unavailable") }
         item { InfoCard("Profile", s?.profile ?: "Waiting for API") }
+        item { InfoCard("Service", s?.let { it.serviceState + " • uptime " + formatUptime(it.serviceUptimeSeconds) } ?: "Waiting for API") }
+        item { InfoCard("Root environment", s?.let { it.rootProvider + " • Zygisk " + it.zygisk } ?: snapshot.rootProvider) }
+        item { InfoCard("Manufacturer", s?.manufacturer ?: "Waiting for API") }
+        item { InfoCard("Brand / model", s?.let { it.brand + " / " + it.model } ?: "Waiting for API") }
         item { InfoCard("Device", s?.device ?: "Waiting for API") }
         item { InfoCard("Android", if (s != null) s.androidRelease + " / SDK " + s.androidSdk else "Waiting for API") }
         item { InfoCard("Build", s?.buildId ?: "Waiting for API") }
         item { InfoCard("Security patch", s?.securityPatch ?: "Waiting for API") }
+        item { InfoCard("Build fingerprint", s?.buildFingerprint ?: "Waiting for API") }
+        if (s != null) {
+            item { Text("Effective engine settings", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+            item { InfoCard("Watchdog", "Enabled " + s.settings.watchdogEnabled + " • every " + s.settings.watchdogInterval + "s") }
+            item { InfoCard("Fault confirmation", s.settings.failureThreshold + " faults / " + s.settings.failureWindowSeconds + "s") }
+            item { InfoCard("Recovery limits", "Cooldown " + s.settings.recoveryCooldown + "s • max " + s.settings.maxRestartsPerHour + "/hour") }
+            item { InfoCard("Recovery guards", "Adapter " + s.settings.adapterRecovery + " • freeze " + s.settings.interactionFreezeGuard) }
+            item { InfoCard("BLE / Location", "BLE always " + s.settings.bleScanAlways + " • location mode " + s.settings.locationMode) }
+        }
         item {
             val active = s?.let { status ->
                 listOf(status.activePokemonGo, status.activePokemod).filter { p -> p != "none" && p.isNotBlank() }
@@ -194,6 +211,10 @@ private fun Device(snapshot: CompanionSnapshot) {
 @Composable
 private fun Support(snapshot: CompanionSnapshot, onRefresh: () -> Unit) {
     val s = snapshot.status
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var diagnosticState by remember { mutableStateOf("") }
+    var generating by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Text("Support", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -202,11 +223,26 @@ private fun Support(snapshot: CompanionSnapshot, onRefresh: () -> Unit) {
         item { InfoCard("Root access", if (snapshot.rootAvailable) "Granted • " + snapshot.rootProvider else "Unavailable") }
         item { InfoCard("Module", if (snapshot.module.detected) "Detected • v" + snapshot.module.version else "Not detected") }
         item { InfoCard("Module enabled", if (snapshot.module.enabled) "Yes" else "No") }
-        item { InfoCard("Manager API", if (s != null) "Available • schema " + s.schema else "Unavailable") }
+        item { InfoCard("Manager API", if (s != null) s.serviceState + " • schema " + s.schema + " • " + apiFreshness(s) else "Unavailable") }
         item { InfoCard("API source", snapshot.apiSource) }
         item { InfoCard("Status updated", s?.timestamp ?: "No snapshot") }
         snapshot.error?.let { item { WarningCard(it) } }
         item { InfoCard("Recovery ownership", "The app is a monitor/support surface. Bluetooth recovery and policy remain inside the Magisk module.") }
+        item {
+            Button(enabled = snapshot.rootAvailable && snapshot.module.detected && !generating, onClick = {
+                generating = true; diagnosticState = "Generating sanitized support bundle…"
+                scope.launch {
+                    val result = withContext(Dispatchers.IO) { RootBridge.generateDiagnostics() }
+                    generating = false
+                    diagnosticState = result.fold(
+                        onSuccess = { path -> "Report ready: " + path },
+                        onFailure = { err -> "Report failed: " + (err.message ?: "unknown error") }
+                    )
+                }
+            }, modifier = Modifier.fillMaxWidth()) { Text(if (generating) "Generating…" else "Generate Diagnostic Report") }
+        }
+        if (diagnosticState.isNotBlank()) item { InfoCard("Diagnostics", diagnosticState) }
+        item { InfoCard("Privacy", "Support reports redact Bluetooth MAC addresses and are generated locally. Review the report before sharing.") }
         item { Button(onClick = onRefresh, Modifier.fillMaxWidth()) { Text("Run detection again") } }
     }
 }
@@ -310,3 +346,21 @@ private fun heartbeat(age: Long) = when {
 
 private fun friendlyNone(value: String) =
     if (value.isBlank() || value == "none" || value == "unknown") "None recorded" else value
+
+
+private fun formatUptime(seconds: Long): String {
+    if (seconds < 0) return "unknown"
+    val h = seconds / 3600
+    val m = (seconds % 3600) / 60
+    return if (h > 0) "${h}h ${m}m" else "${m}m"
+}
+
+private fun apiFreshness(status: BshStatus): String {
+    val now = System.currentTimeMillis() / 1000
+    val age = if (status.epoch > 0) now - status.epoch else -1
+    return when {
+        age < 0 -> "age unknown"
+        age <= 90 -> "fresh"
+        else -> "stale ${age}s"
+    }
+}
