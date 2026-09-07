@@ -539,6 +539,12 @@ main_loop() {
   done
 }
 
+# Publish a private BOOTING snapshot before Android finishes booting so the
+# companion can distinguish service startup from a missing/broken API.
+if [ "${MANAGER_API_ENABLED:-1}" = 1 ]; then
+  manager_api_init
+  manager_api_write_status
+fi
 wait_until_boot_complete
 ensure_files
 cleanup_boot_logs
