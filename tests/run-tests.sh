@@ -203,3 +203,5 @@ grep -q '^Profile: Google Pixel (primary)$' "$install_root/state/install-report.
 grep -q '^PROFILE_ID=pixel$' "$install_root/state/install-profile.txt"
 
 echo "Bluetooth Stability Helper tests: PASS"
+
+# v1.8 API contract test refresh
