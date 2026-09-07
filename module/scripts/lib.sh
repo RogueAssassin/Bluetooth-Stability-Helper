@@ -157,6 +157,8 @@ fresh_log_fault() {
   echo "$signature" > "$sigfile"
   echo "$event_epoch" > "$STATE_DIR/last-fresh-fault-epoch"
   printf '%s\n' "$match" > "$STATE_DIR/last-fresh-fault.txt"
+  echo "$observer" > "$STATE_DIR/last-fault-type"
+  command -v record_event >/dev/null 2>&1 && record_event "fault" "warning" "$observer" "Fresh fault evidence accepted" "" ""
   return 0
 }
 
@@ -223,7 +225,12 @@ export_bluetooth_health_score() {
   "active_pokemon_go": "$(active_pokemon_go 2>/dev/null)",
   "active_pokemod_vpgp3": "$(active_pokemod 2>/dev/null)",
   "bt_enabled_setting": "$(bt_enabled_setting)",
-  "bt_process_count": "$(bt_process_count)"
+  "bt_process_count": "$(bt_process_count)",
+  "recovery_state": "$(cat "$STATE_DIR/recovery-state" 2>/dev/null || echo UNKNOWN)",
+  "last_fault_type": "$(cat "$STATE_DIR/last-fault-type" 2>/dev/null || echo none)",
+  "recoveries_last_hour": "$(count_recent_restarts 2>/dev/null || echo 0)",
+  "recovery_history_count": "$(wc -l < "$metrics_dir/recovery-history.jsonl" 2>/dev/null || echo 0)",
+  "event_history_count": "$(wc -l < "$metrics_dir/events.jsonl" 2>/dev/null || echo 0)"
 }
 EOF
   echo "$score"
