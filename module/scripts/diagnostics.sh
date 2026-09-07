@@ -25,6 +25,11 @@ echo "Fingerprint: $(getprop ro.build.fingerprint 2>/dev/null)"
  echo "Build fingerprint: $(getprop ro.build.fingerprint)"
  echo "Zygisk: $(magisk --zygisk 2>/dev/null || echo unknown)"
  echo "Bluetooth health score: $(bluetooth_health_score 2>/dev/null)"
+ heartbeat=$(cat "$STATE_DIR/service-heartbeat" 2>/dev/null); now=$(date +%s)
+ heartbeat_age="unknown"; [ -n "$heartbeat" ] && heartbeat_age=$((now-heartbeat))
+ echo "Watchdog heartbeat age: ${heartbeat_age}s"
+ echo "Service start epoch: $(cat "$STATE_DIR/service-start-time" 2>/dev/null)"
+ echo "Recoveries recorded: $(wc -l < "$CONFIG_DIR/metrics/recovery-history.jsonl" 2>/dev/null || echo 0)"
  echo "Build family: $(build_family 2>/dev/null)"
  echo "Patch awareness: SDK/build/security-patch profile, no unreleased-patch hard-coding"
  echo "Vector/LSPosed safety: no Zygisk or ART hooks are installed by this module"
