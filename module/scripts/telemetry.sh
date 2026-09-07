@@ -15,8 +15,9 @@ telemetry_init() {
 }
 
 json_escape() {
-  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/	/ /g; s// /g; s/
-/ /g'
+  # Telemetry values are generated as single-line scalar fields. Escape only
+  # JSON-significant backslashes and quotes to keep Android /system/bin/sh portable.
+  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
 trim_jsonl() {
