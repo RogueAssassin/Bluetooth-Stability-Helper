@@ -10,7 +10,10 @@ warn=0
 . "$MODDIR/common/config.sh"
 . "$MODDIR/scripts/lib.sh"
 . "$MODDIR/scripts/telemetry.sh"
+. "$MODDIR/scripts/manager_api.sh"
 telemetry_init
+manager_api_init
+manager_api_write_status
 apply_device_profile
 load_user_config "$USERCFG"
 
@@ -24,7 +27,7 @@ echo "Android: $(getprop ro.build.version.release 2>/dev/null) / SDK $(sdk_int)"
 echo "Build: $(build_id)"
 echo
 
-for file in module.prop service.sh post-fs-data.sh action.sh uninstall.sh common/config.sh scripts/lib.sh scripts/telemetry.sh scripts/diagnostics.sh scripts/install_utils.sh; do
+for file in module.prop service.sh post-fs-data.sh action.sh uninstall.sh common/config.sh scripts/lib.sh scripts/telemetry.sh scripts/manager_api.sh scripts/diagnostics.sh scripts/install_utils.sh; do
   [ -f "$MODDIR/$file" ] && pass "$file present" || failure "$file missing"
 done
 
@@ -62,6 +65,7 @@ echo "Recovery policy: ${FAILURE_THRESHOLD} faults/${FAILURE_WINDOW_SECONDS}s, m
 echo "Adapter recovery: $ENABLE_ADAPTER_TOGGLE_RECOVERY"
 echo "Recovery state: $(recovery_state)"
 echo "Last recovery outcome: $(last_recovery_outcome)"
+[ -s "$API_STATUS_FILE" ] && pass "manager API status snapshot available" || warning "manager API status snapshot unavailable"
 echo "Status: $CONFIG_DIR/status.txt"
 echo "Install report: $CONFIG_DIR/install-report.txt"
 
