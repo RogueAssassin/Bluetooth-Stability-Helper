@@ -6,6 +6,8 @@ if ! command -v ui_print >/dev/null 2>&1; then ui_print() { echo "$1"; }; fi
 USERCFG="$LOCAL_USER_CONFIG"
 mkdir -p "$EXPORT_DIR" "$IMPORT_DIR" "$LOG_DIR" "$STATE_DIR"
 . "$MODDIR/scripts/lib.sh"
+. "$MODDIR/scripts/telemetry.sh"
+telemetry_init
 
 [ -f "$USERCFG" ] || cat > "$USERCFG" <<'EOF'
 # Bluetooth Stability Helper local overrides.
@@ -31,6 +33,8 @@ ui_print "Device: $(getprop ro.product.brand 2>/dev/null) $(getprop ro.product.m
 ui_print "Android: $(getprop ro.build.version.release 2>/dev/null) / SDK $(sdk_int)"
 ui_print "Recovery: ${FAILURE_THRESHOLD} faults/${FAILURE_WINDOW_SECONDS}s, cooldown ${RECOVERY_COOLDOWN}s"
 ui_print "Bluetooth: enabled=$(bt_enabled_setting), processes=$(bt_process_count)"
+ui_print "Engine state: $(recovery_state)"
+ui_print "Last recovery: $(last_recovery_outcome)"
 
 pid=$(cat /data/adb/bsh-service.lock/pid 2>/dev/null)
 if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then ui_print "Watchdog: running (PID $pid)"
