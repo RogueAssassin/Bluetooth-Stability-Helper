@@ -6,8 +6,8 @@
 
 **Pixel-first adaptive Bluetooth stability engine for Android**
 
-[![Channel](https://img.shields.io/badge/CHANNEL-TESTING-8b5cf6?style=for-the-badge&labelColor=45464d)](https://github.com/RogueAssassin/Bluetooth-Stability-Helper/tree/testing)
-[![Build](https://img.shields.io/github/actions/workflow/status/RogueAssassin/Bluetooth-Stability-Helper/package.yml?branch=testing&style=for-the-badge&label=BUILD&labelColor=45464d)](https://github.com/RogueAssassin/Bluetooth-Stability-Helper/actions/workflows/package.yml?query=branch%3Atesting)
+[![Channel](https://img.shields.io/badge/CHANNEL-STABLE-8b5cf6?style=for-the-badge&labelColor=45464d)](https://github.com/RogueAssassin/Bluetooth-Stability-Helper/tree/main)
+[![Build](https://img.shields.io/github/actions/workflow/status/RogueAssassin/Bluetooth-Stability-Helper/package.yml?branch=main&style=for-the-badge&label=BUILD&labelColor=45464d)](https://github.com/RogueAssassin/Bluetooth-Stability-Helper/actions/workflows/package.yml?query=branch%3Amain)
 ![Android](https://img.shields.io/badge/ANDROID-12--17-00cbe6?style=for-the-badge&labelColor=45464d)
 ![Profile](https://img.shields.io/badge/PROFILE-PIXEL%20FIRST-42d6a4?style=for-the-badge&labelColor=45464d)
 
@@ -30,9 +30,9 @@ It is particularly useful for long-running Bluetooth-heavy sessions such as **Po
 - reversible optional tuning with uninstall restoration
 - capped event-based logging and diagnostics
 - modern Magisk installer and non-destructive verification tooling
-- read-only manager API for the optional companion app
+- read-only manager API for the companion app
 - native Android companion app for health, event timeline and support views
-
+- companion APK is built into the module package and installed/updated during module installation when available
 
 ## How it works
 
@@ -78,11 +78,11 @@ The module watches Android Bluetooth, BLE, GATT, location and companion-device b
 
 1. Install the module ZIP using Magisk.
 2. Review the detected device, Android build, Bluetooth stack and selected profile shown by the installer.
-3. Reboot.
-4. Allow the module to run automatically.
-5. Check `/sdcard/Bluetooth-Stability-Helper/status.txt` or run the Magisk Action for diagnostics.
+3. The bundled BSH Companion APK is installed or updated automatically when package installation is available.
+4. Reboot.
+5. Open **BSH Companion** for health/timeline/support views, or use the Magisk Action for diagnostics.
 
-The installer distinguishes clean installs from upgrades, validates required files and shell syntax, preserves restoration data and does not overwrite the external user configuration.
+The installer distinguishes clean installs from upgrades, validates required files and shell syntax, preserves restoration data and does not overwrite the external user configuration. A companion-app install failure does not abort the root module installation.
 
 ## Configuration
 
@@ -129,7 +129,7 @@ Pixel uses the quickest validated confirmation policy. Other OEM profiles use sl
 
 ## Diagnostics
 
-The Magisk Action and `verify.sh` expose:
+The Magisk Action, companion app and `verify.sh` expose:
 
 - selected OEM profile and Android/build information
 - Bluetooth adapter and process health
@@ -140,13 +140,11 @@ The Magisk Action and `verify.sh` expose:
 - Companion Device and permission state
 - bounded diagnostics exports
 
-The testing branch publishes a read-only manager contract under `/sdcard/Bluetooth-Stability-Helper/api/` and includes the optional Android companion app under `companion-app/`. See **[Manager API](docs/MANAGER_API.md)**.
-
 ## Companion app
 
-The optional native Android companion app lives in `companion-app/`. It does not replace the Magisk module or implement recovery itself.
+The native Android companion app lives in `companion-app/`. It does not replace the Magisk module or implement recovery itself.
 
-The first app surface provides live module health and recovery state, OEM profile/build context, watchdog/Bluetooth state, a normalized event timeline and support status. It exposes no arbitrary shell console or generic root command channel.
+The app provides live module health and recovery state, OEM profile/build context, watchdog/Bluetooth state, a normalized event timeline and support status. It exposes no arbitrary shell console or generic root command channel.
 
 The app uses the schema-versioned read-only manager contract and reads only fixed BSH runtime paths through root. The module continues to operate normally if the app is not installed.
 
@@ -161,7 +159,7 @@ Unknown devices receive conservative fallback behaviour rather than guessed vend
 The supplied full-quality PNG artwork is canonical:
 
 - `assets/BSH-Bluetooth-Stability-Helper-Banner.png` — README/project banner
-- `assets/BSH-Bluetooth-Stability-Helper-Logo.png` — primary project and future app identity
+- `assets/BSH-Bluetooth-Stability-Helper-Logo.png` — primary project and app identity
 
 ## Documentation
 
@@ -173,4 +171,4 @@ The supplied full-quality PNG artwork is canonical:
 
 ## Project references
 
-The installation and lifecycle design was reviewed against the official Magisk module developer guide, MMT-Extended and Advanced Charging Controller. They are design references only; Bluetooth Stability Helper retains its own implementation and purpose.
+The installation and lifecycle design was reviewed against the official Magisk module developer guide, MMT-Extended, Advanced Charging Controller and Vector's bundled-manager packaging pattern. These are design references only; Bluetooth Stability Helper retains its own recovery architecture and does not adopt Vector's Zygisk/Xposed hooking model.
