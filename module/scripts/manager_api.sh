@@ -21,8 +21,8 @@ manager_api_json_escape() {
 }
 
 manager_api_write_capabilities() {
-  tmp="$API_CAPABILITIES_FILE.tmp"
-  cat > "$tmp" <<EOF
+  api_cap_tmp="$API_CAPABILITIES_FILE.tmp"
+  cat > "$api_cap_tmp" <<EOF
 {
   "schema": $API_SCHEMA_VERSION,
   "module": "Bluetooth Stability Helper",
@@ -43,12 +43,12 @@ manager_api_write_capabilities() {
   }
 }
 EOF
-  mv "$tmp" "$API_CAPABILITIES_FILE" 2>/dev/null
+  mv "$api_cap_tmp" "$API_CAPABILITIES_FILE" 2>/dev/null
 }
 
 manager_api_write_config_schema() {
-  tmp="$API_CONFIG_SCHEMA_FILE.tmp"
-  cat > "$tmp" <<'EOF'
+  api_cfg_tmp="$API_CONFIG_SCHEMA_FILE.tmp"
+  cat > "$api_cfg_tmp" <<'EOF'
 {
   "schema": 1,
   "config_file": "/sdcard/Bluetooth-Stability-Helper/user-config.sh",
@@ -66,7 +66,7 @@ manager_api_write_config_schema() {
   }
 }
 EOF
-  mv "$tmp" "$API_CONFIG_SCHEMA_FILE" 2>/dev/null
+  mv "$api_cfg_tmp" "$API_CONFIG_SCHEMA_FILE" 2>/dev/null
 }
 
 manager_api_heartbeat_age() {
@@ -85,7 +85,7 @@ manager_api_refresh_due() {
 manager_api_write_status() {
   mkdir -p "$API_DIR" 2>/dev/null
   metrics_dir="${CONFIG_DIR:-/sdcard/Bluetooth-Stability-Helper}/metrics"
-  tmp="$API_STATUS_FILE.tmp"
+  api_status_tmp="$API_STATUS_FILE.tmp"
   score=$(bluetooth_health_score 2>/dev/null); [ -n "$score" ] || score=0
   profile="${PROFILE_ID:-$(device_profile_id 2>/dev/null)}"; [ -n "$profile" ] || profile=unknown
   state=$(recovery_state 2>/dev/null); [ -n "$state" ] || state=UNKNOWN
@@ -93,7 +93,7 @@ manager_api_write_status() {
   outcome=$(last_recovery_outcome 2>/dev/null); [ -n "$outcome" ] || outcome=none
   go=$(active_pokemon_go 2>/dev/null || true); [ -n "$go" ] || go=none
   pm=$(active_pokemod 2>/dev/null || true); [ -n "$pm" ] || pm=none
-  cat > "$tmp" <<EOF
+  cat > "$api_status_tmp" <<EOF
 {
   "schema": $API_SCHEMA_VERSION,
   "timestamp": "$(date '+%F %T')",
@@ -117,7 +117,7 @@ manager_api_write_status() {
   "health_file": "$metrics_dir/bluetooth-health.json"
 }
 EOF
-  mv "$tmp" "$API_STATUS_FILE" 2>/dev/null
+  mv "$api_status_tmp" "$API_STATUS_FILE" 2>/dev/null
   date +%s > "$API_LAST_REFRESH_FILE"
 }
 
