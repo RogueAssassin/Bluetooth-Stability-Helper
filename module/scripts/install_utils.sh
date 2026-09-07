@@ -2,6 +2,7 @@
 
 BSH_ID="btstabilityhelper"
 BSH_OLD_MODPATH="/data/adb/modules/$BSH_ID"
+BSH_COMPANION_PACKAGE="com.rogueassassin.bsh"
 
 bsh_prop() { getprop "$1" 2>/dev/null; }
 bsh_lc() { tr '[:upper:]' '[:lower:]'; }
@@ -177,6 +178,7 @@ bsh_write_install_report() {
     echo "Bluetooth stack: $(bsh_bt_stack_summary)"
     echo "Pokemon GO: $(bsh_package_state com.nianticlabs.pokemongo)"
     echo "Pokemod: $(bsh_package_state com.pokemod.app.public)"
+    echo "Companion app before install: $(bsh_package_state "$BSH_COMPANION_PACKAGE")"
   } > "$MODPATH/state/install-report.txt"
 }
 
@@ -215,6 +217,39 @@ bsh_print_environment() {
   esac
   ui_print "- Pokemon GO: $(bsh_package_state com.nianticlabs.pokemongo)"
   ui_print "- Pokemod: $(bsh_package_state com.pokemod.app.public)"
+  ui_print "- BSH Companion: $(bsh_package_state "$BSH_COMPANION_PACKAGE")"
+}
+
+bsh_install_companion_app() {
+  apk="$MODPATH/companion.apk"
+  [ -f "$apk" ] || {
+    ui_print "- Companion APK not bundled; module will continue without the app"
+    return 0
+  }
+  [ -s "$apk" ] || {
+    ui_print "! Companion APK is empty; skipping app install"
+    return 0
+  }
+
+  if command -v pm >/dev/null 2>&1; then
+    result=$(pm install -r "$apk" 2>&1)
+  elif command -v cmd >/dev/null 2>&1; then
+    result=$(cmd package install -r "$apk" 2>&1)
+  else
+    ui_print "! Android package installer command unavailable; companion app not installed"
+    return 0
+  fi
+
+  case "$result" in
+    *Success*|*success*)
+      ui_print "- BSH Companion installed/updated"
+      ;;
+    *)
+      ui_print "! BSH Companion install was not completed automatically"
+      ui_print "! Package installer: ${result:-unknown error}"
+      ui_print "! The Magisk module installation will continue"
+      ;;
+  esac
 }
 
 bsh_verify_payload() {
