@@ -20,8 +20,8 @@ manager_api_mirror_file() {
   src="$1"; name="$2"
   [ -f "$src" ] || return 0
   mkdir -p "$EXTERNAL_API_DIR" 2>/dev/null || return 0
-  tmp="$EXTERNAL_API_DIR/$name.tmp"
-  cp "$src" "$tmp" 2>/dev/null && mv "$tmp" "$EXTERNAL_API_DIR/$name" 2>/dev/null
+  api_mirror_tmp="$EXTERNAL_API_DIR/$name.tmp"
+  cp "$src" "$api_mirror_tmp" 2>/dev/null && mv "$api_mirror_tmp" "$EXTERNAL_API_DIR/$name" 2>/dev/null
 }
 
 manager_api_init() {
