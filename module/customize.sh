@@ -5,7 +5,7 @@ SKIPUNZIP=0
 
 ui_print "***************************************"
 ui_print " Bluetooth Stability Helper PRO"
-ui_print " v1.2.0 Universal Compatibility"
+ui_print " Companion-enabled release"
 ui_print "***************************************"
 ui_print "Pixel-first evidence-based BT stability"
 
@@ -23,6 +23,10 @@ bsh_write_install_report
 bsh_verify_payload
 
 ui_print ""
+ui_print "Installing companion app..."
+bsh_install_companion_app
+
+ui_print ""
 ui_print "Applying permissions..."
 set_perm_recursive "$MODPATH" 0 0 0755 0644
 for file in service.sh action.sh post-fs-data.sh uninstall.sh verify.sh; do
@@ -34,12 +38,14 @@ set_perm_recursive "$MODPATH/common/profiles" 0 0 0755 0755
 ui_print ""
 ui_print "Installation verified"
 ui_print "- Starts only after Android completes booting"
-ui_print "- No app, Zygisk, LSPosed/Vector or identity modification"
+ui_print "- Companion app is bundled with the module and installed when the APK is present"
+ui_print "- No Zygisk, LSPosed/Vector hooks or identity modification"
 ui_print "- No vendor property changes in the default profiles"
 ui_print "- Existing external user configuration is preserved"
 ui_print "- Previous uninstall restoration data was preserved"
 ui_print ""
 ui_print "After reboot"
+ui_print "- Companion app: BSH Companion"
 ui_print "- Status: /sdcard/Bluetooth-Stability-Helper/status.txt"
 ui_print "- Install report: /sdcard/Bluetooth-Stability-Helper/install-report.txt"
 ui_print "- Tap the module Action button for diagnostics"
