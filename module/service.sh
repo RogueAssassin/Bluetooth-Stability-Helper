@@ -37,7 +37,9 @@ mkdir -p "$STATE_DIR" "$CONFIG_DIR" "$CONFIG_DIR/logs" "$EXPORT_DIR" "$CONFIG_DI
 . "$MODDIR/common/config.sh"
 . "$MODDIR/scripts/lib.sh"
 . "$MODDIR/scripts/telemetry.sh"
+. "$MODDIR/scripts/manager_api.sh"
 telemetry_init
+[ "${MANAGER_API_ENABLED:-1}" = 1 ] && manager_api_init
 
 rotate_log_if_needed() { log_rotate_enforce 2>/dev/null; log_storage_guard 2>/dev/null; }
 
@@ -505,6 +507,7 @@ main_loop() {
       fi
     fi
     write_status
+    [ "${MANAGER_API_ENABLED:-1}" = 1 ] && manager_api_refresh
     sleep "$WATCHDOG_INTERVAL"
   done
 }
