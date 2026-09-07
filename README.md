@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/branding/bluetooth-stability-helper.svg" width="128" height="128" alt="Bluetooth Stability Helper monogram">
+<img src="assets/branding/banner.svg" width="920" alt="Bluetooth Stability Helper — Rogue ecosystem banner">
 
 # Bluetooth Stability Helper
 
