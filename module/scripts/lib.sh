@@ -125,7 +125,9 @@ load_user_config() {
     esac
     case "$key" in
       WATCHDOG_INTERVAL|LOG_IMPORTANT_ONLY|LOG_DEDUP_SECONDS|LOG_BOOT_CLEAN|LOG_ROTATE_SIZE_KB|LOG_KEEP_ROTATED_COUNT|LOG_MAX_TOTAL_MB|EXPORT_MAX_FILES|METRICS_MAX_KB|SNAPSHOT_MAX_FILES|LOGCAT_CAPTURE_LINES|LOGCAT_CAPTURE_WINDOW_SECONDS|MAX_RESTARTS_PER_HOUR|FAILURE_THRESHOLD|FAILURE_WINDOW_SECONDS|RECOVERY_COOLDOWN|FRESH_FAULT_MAX_AGE_SECONDS|STALE_SESSION_MINUTES|ENABLE_STALE_SESSION_WATCHDOG|STALE_SESSION_BT_REFRESH|ENABLE_INTERACTION_FREEZE_GUARD|INTERACTION_FREEZE_RECOVERY_AFTER_MATCHES|ENABLE_ADAPTER_TOGGLE_RECOVERY|ENABLE_BLUETOOTH_APP_FORCE_STOP|ENABLE_A2DP_OFFLOAD_DISABLE|ENABLE_BLE_SCAN_ALWAYS|ENABLE_WIFI_SCAN_THROTTLE_OFF|ENABLE_LOCATION_BG_THROTTLE_OFF|APPLY_APP_OPS_FIXES|APPLY_RESTRICTED_STANDBY_FIXES|WHITELIST_BLUETOOTH|WHITELIST_GMS|WHITELIST_POKEMON_GO|WHITELIST_POKEMOD|RUN_DIAGNOSTICS_ON_BOOT)
-        printf '%s' "$value" | grep -Eq '^[0-9]+
+        printf '%s' "$value" | grep -Eq '^[0-9]+$' || { log "Config warning: ignored invalid numeric override: $key"; continue; }
+        _numeric_override_in_range "$key" "$value" || { log "Config warning: ignored out-of-range override: $key=$value"; continue; }
+        printf '%s=%s\n' "$key" "$value" >> "$safe"
         ;;
       STALE_SESSION_ACTION)
         case "$value" in log|diagnose) printf '%s=%s\n' "$key" "$value" >> "$safe" ;; *) log "Config warning: ignored unsafe stale-session action" ;; esac
