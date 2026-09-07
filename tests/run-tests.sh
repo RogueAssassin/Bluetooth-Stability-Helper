@@ -137,7 +137,7 @@ grep -q '"type":"test"' "$EVENT_HISTORY_FILE"
 set_recovery_state "SUSPECT"
 [ "$(recovery_state)" = SUSPECT ]
 
-# v1.4 manager contract is read-only, versioned and emits atomic JSON snapshots.
+# Manager contract is read-only, versioned and emits atomic JSON snapshots.
 API_DIR="$tmp/api"
 API_STATUS_FILE="$API_DIR/status.json"
 API_CAPABILITIES_FILE="$API_DIR/capabilities.json"
@@ -145,7 +145,8 @@ API_CONFIG_SCHEMA_FILE="$API_DIR/config-schema.json"
 API_LAST_REFRESH_FILE="$STATE_DIR/manager-api-last-refresh"
 manager_api_init
 manager_api_write_status
-grep -q '"schema": 1' "$API_STATUS_FILE"
+grep -q '"schema": 2' "$API_STATUS_FILE"
+grep -q '"schema": 2' "$API_CAPABILITIES_FILE"
 grep -q '"read_only": true' "$API_CAPABILITIES_FILE"
 grep -q '"remote_commands": false' "$API_CAPABILITIES_FILE"
 grep -q '"WATCHDOG_INTERVAL"' "$API_CONFIG_SCHEMA_FILE"
