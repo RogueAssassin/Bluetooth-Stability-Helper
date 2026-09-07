@@ -149,8 +149,10 @@ API_CONFIG_SCHEMA_FILE="$API_DIR/config-schema.json"
 API_LAST_REFRESH_FILE="$STATE_DIR/manager-api-last-refresh"
 manager_api_init
 manager_api_write_status
-grep -q '"schema": 2' "$API_STATUS_FILE"
-grep -q '"schema": 2' "$API_CAPABILITIES_FILE"
+grep -q '"schema": 3' "$API_STATUS_FILE"
+grep -q '"schema": 3' "$API_CAPABILITIES_FILE"
+grep -q '"service_state":' "$API_STATUS_FILE"
+grep -q '"settings": {' "$API_STATUS_FILE"
 grep -q '"read_only": true' "$API_CAPABILITIES_FILE"
 grep -q '"remote_commands": false' "$API_CAPABILITIES_FILE"
 grep -q '"WATCHDOG_INTERVAL"' "$API_CONFIG_SCHEMA_FILE"
