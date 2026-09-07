@@ -96,3 +96,24 @@ tail -n 120 "$CONFIG_DIR/metrics/events.jsonl" > "$EXPORT_DIR/events.jsonl" 2>/d
 cp "$API_STATUS_FILE" "$EXPORT_DIR/manager-status.json" 2>/dev/null
 cp "$API_CAPABILITIES_FILE" "$EXPORT_DIR/manager-capabilities.json" 2>/dev/null
 cp "$API_CONFIG_SCHEMA_FILE" "$EXPORT_DIR/manager-config-schema.json" 2>/dev/null
+
+# v1.8 support bundle: bounded, sanitized evidence for user-submitted reports.
+BUNDLE_TS=$(date '+%Y%m%d-%H%M%S')
+BUNDLE_DIR="$EXPORT_DIR/BSH-Diagnostics-$BUNDLE_TS"
+BUNDLE_ZIP="$EXPORT_DIR/BSH-Diagnostics-$BUNDLE_TS.zip"
+mkdir -p "$BUNDLE_DIR"
+for pair in "status.txt:summary.txt" "verification.txt:verification.txt" "bluetooth-health.json:bluetooth-health.json" "events.jsonl:events.jsonl" "recovery-history.jsonl:recovery-history.jsonl" "log-tail.txt:log-tail.txt" "manager-status.json:manager-status.json" "manager-capabilities.json:manager-capabilities.json" "manager-config-schema.json:manager-config-schema.json"; do
+  src=${pair%%:*}; dst=${pair#*:}; [ -f "$EXPORT_DIR/$src" ] && cp "$EXPORT_DIR/$src" "$BUNDLE_DIR/$dst" 2>/dev/null
+done
+printf '{"schema":1,"module_version":"%s","created":"%s","privacy":"sanitized-support-bundle"}\n' "$(module_version)" "$(date '+%F %T')" > "$BUNDLE_DIR/manifest.json"
+for item in "$BUNDLE_DIR"/*; do
+  [ -f "$item" ] || continue
+  sed -i -E 's/([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}/[REDACTED-MAC]/g' "$item" 2>/dev/null || true
+done
+if command -v zip >/dev/null 2>&1; then
+  (cd "$BUNDLE_DIR" && zip -qr "$BUNDLE_ZIP" .) 2>/dev/null && rm -rf "$BUNDLE_DIR"
+else
+  BUNDLE_ZIP="$BUNDLE_DIR"
+fi
+echo "$BUNDLE_ZIP" > "$STATE_DIR/last-diagnostic-bundle"
+echo "Diagnostic bundle: $BUNDLE_ZIP"
