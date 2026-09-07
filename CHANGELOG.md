@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.8.0
+- Added Manager API schema 3 with BOOTING/READY lifecycle, service uptime, root environment, expanded device/build metadata and effective recovery settings.
+- Publish an initial manager snapshot during module startup and refresh the complete READY snapshot after Android boot/profile initialization.
+- Expanded the companion Device view with manufacturer, brand/model, build fingerprint, root/Zygisk, service uptime and effective engine policy.
+- Added API freshness/stale reporting to the companion support surface.
+- Added a companion-triggered, fixed root diagnostic action and timestamped sanitized support bundles.
+- Added local diagnostic progress/result reporting and explicit privacy guidance.
+- Hardened API JSON generation and expanded CI contract tests for schema 3.
+- Retained permanent companion signing and certificate verification across testing/stable packages.
+
 ## v1.7.0
 - Established one persistent companion-app signing identity for both testing and stable releases.
 - Changed CI/package/release builds from disposable debug APKs to signed release APKs.
