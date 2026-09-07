@@ -63,6 +63,7 @@ stateDiagram-v2
 | `scripts/telemetry.sh` | Structured bounded events and recovery-state tracking |
 | `scripts/diagnostics.sh` | Human-readable diagnostic/support export |
 | `scripts/manager_api.sh` | Atomic read-only JSON contract for the optional companion app |
+| `companion-app/` | Native Android presentation/support layer; never performs recovery decisions |
 | `verify.sh` | Non-destructive runtime and installation verification |
 | `action.sh` | Magisk Action entry point |
 
@@ -170,6 +171,8 @@ flowchart LR
     App -. no generic command pipe .-> Engine
 ```
 
-The current manager contract is deliberately read-only. The app can present health, timeline, profile, recovery and configuration metadata without becoming a second recovery engine or exposing arbitrary root commands.
+The manager contract is deliberately read-only. The included native Android app presents health, timeline, profile and support metadata without becoming a second recovery engine or exposing arbitrary root commands.
+
+The app reads only fixed BSH paths through `su`, so it does not need broad shared-storage permissions. Root denial, a missing module and schema mismatch are surfaced as app status.
 
 Future write support should use explicit allow-listed actions and transactional configuration changes rather than unrestricted shell execution. See [docs/MANAGER_API.md](docs/MANAGER_API.md).

@@ -30,7 +30,8 @@ It is particularly useful for long-running Bluetooth-heavy sessions such as **Po
 - reversible optional tuning with uninstall restoration
 - capped event-based logging and diagnostics
 - modern Magisk installer and non-destructive verification tooling
-- read-only manager API for the upcoming companion app
+- read-only manager API for the optional companion app
+- native Android companion app for health, event timeline and support views
 
 
 ## How it works
@@ -139,7 +140,15 @@ The Magisk Action and `verify.sh` expose:
 - Companion Device and permission state
 - bounded diagnostics exports
 
-The testing branch also publishes a read-only manager contract under `/sdcard/Bluetooth-Stability-Helper/api/`. See **[Manager API](docs/MANAGER_API.md)**.
+The testing branch publishes a read-only manager contract under `/sdcard/Bluetooth-Stability-Helper/api/` and includes the optional Android companion app under `companion-app/`. See **[Manager API](docs/MANAGER_API.md)**.
+
+## Companion app
+
+The optional native Android companion app lives in `companion-app/`. It does not replace the Magisk module or implement recovery itself.
+
+The first app surface provides live module health and recovery state, OEM profile/build context, watchdog/Bluetooth state, a normalized event timeline and support status. It exposes no arbitrary shell console or generic root command channel.
+
+The app uses the schema-versioned read-only manager contract and reads only fixed BSH runtime paths through root. The module continues to operate normally if the app is not installed.
 
 ## Security and compatibility
 
@@ -158,6 +167,7 @@ The supplied full-quality PNG artwork is canonical:
 
 - **[Architecture](ARCHITECTURE.md)** — module lifecycle and data flow
 - **[Manager API](docs/MANAGER_API.md)** — companion-app contract and security boundary
+- **[Companion app](companion-app/README.md)** — Android app structure, build and data access
 - **[Changelog](CHANGELOG.md)** — complete release history and current development changes
 - **[Contributing](CONTRIBUTING.md)** — contribution notes
 

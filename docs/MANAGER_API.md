@@ -1,6 +1,6 @@
 # Bluetooth Stability Helper Manager API
 
-Bluetooth Stability Helper 1.4 introduces a small, read-only data contract for the optional companion app. The Magisk module remains the root-side engine and continues to work completely without the app.
+Bluetooth Stability Helper exposes a small, read-only data contract for the optional companion app. The Magisk module remains the root-side engine and continues to work completely without the app.
 
 ## Runtime path
 
@@ -11,7 +11,7 @@ Bluetooth Stability Helper 1.4 introduces a small, read-only data contract for t
 └── config-schema.json
 ```
 
-The current API schema is **1**.
+The current API schema is **1** and is consumed by the native companion app.
 
 ## status.json
 
@@ -27,6 +27,6 @@ Documents the safe subset and min/max validation already enforced by the module'
 
 ## Security boundary
 
-The manager contract is a presentation and support layer, not a second recovery engine. Bluetooth decisions remain in the Magisk service. The companion app should request root only for the minimum file access/actions it needs and must never execute unsanitized user input as shell.
+The manager contract is a presentation and support layer, not a second recovery engine. Bluetooth decisions remain in the Magisk service. The companion app requests root only to read fixed Bluetooth Stability Helper API/telemetry paths. It does not expose arbitrary shell input, a terminal or a generic command bridge.
 
 Future write support should use explicit, allow-listed actions and transactional config updates rather than a generic command pipe.
