@@ -37,7 +37,13 @@ mkdir -p "$STATE_DIR" "$CONFIG_DIR/logs" "$CONFIG_DIR/metrics" 2>/dev/null
 case "$(sdk_int)" in 31|32|33|34|35|36|37) pass "Android SDK in validated range" ;; *) warning "Android SDK outside validated range 31-37" ;; esac
 
 pid=$(cat /data/adb/bsh-service.lock/pid 2>/dev/null)
-if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then pass "watchdog service running (PID $pid)"
+if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+  heartbeat=$(cat "$STATE_DIR/service-heartbeat" 2>/dev/null); now=$(date +%s)
+  if [ -n "$heartbeat" ] && [ $((now-heartbeat)) -le "${SERVICE_HEARTBEAT_STALE_SECONDS:-180}" ]; then
+    pass "watchdog service running and responsive (PID $pid)"
+  else
+    warning "watchdog process exists but heartbeat is stale or unavailable"
+  fi
 elif [ "$(getprop sys.boot_completed 2>/dev/null)" = 1 ]; then warning "watchdog service is not currently running"
 else warning "Android has not completed boot; service status unavailable"
 fi
