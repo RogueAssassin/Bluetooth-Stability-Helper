@@ -70,6 +70,33 @@ jobs:
       - name: Run module tests
         run: sh tests/run-tests.sh
 
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        run: sdkmanager "platforms;android-36"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build bundled companion APK
+        working-directory: companion-app
+        run: gradle :app:assembleDebug --stacktrace
+
+      - name: Stage companion APK in module
+        shell: bash
+        run: |
+          cp companion-app/app/build/outputs/apk/debug/app-debug.apk module/companion.apk
+          test -s module/companion.apk
+
       - name: Build Magisk install zip
         shell: bash
         run: |
@@ -83,6 +110,7 @@ jobs:
           unzip -l "${{ steps.version.outputs.zip_name }}" | grep -q 'module.prop'
           unzip -l "${{ steps.version.outputs.zip_name }}" | grep -q 'service.sh'
           unzip -l "${{ steps.version.outputs.zip_name }}" | grep -q 'customize.sh'
+          unzip -l "${{ steps.version.outputs.zip_name }}" | grep -q 'companion.apk'
           unzip -p "${{ steps.version.outputs.zip_name }}" module.prop | grep -q '^version=${{ steps.version.outputs.version }}$'
           unzip -p "${{ steps.version.outputs.zip_name }}" module.prop | grep -q '^versionCode=${{ steps.version.outputs.version_code }}$'
           unzip -p "${{ steps.version.outputs.zip_name }}" module.prop | grep -q '^updateJson='
@@ -99,6 +127,7 @@ jobs:
           files: |
             ${{ steps.version.outputs.zip_name }}
             ${{ steps.version.outputs.zip_name }}.sha256
+            module/companion.apk
           generate_release_notes: true
           draft: false
           prerelease: false
