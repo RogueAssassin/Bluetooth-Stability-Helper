@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Bluetooth Stability Helper monogram</title>
+  <desc id="desc">Compact BSH monogram combining a Bluetooth-inspired B with stability signal arcs.</desc>
+  <defs>
+    <linearGradient id="g" x1="48" y1="36" x2="208" y2="220" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#00cbe6"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="224" height="224" rx="54" fill="#17181d"/>
+  <path d="M108 52v152l58-48-42-28 42-30-58-46zm20 38 19 10-19 14V90zm0 52 19 14-19 16v-30z" fill="none" stroke="url(#g)" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M72 83c-16 13-26 33-26 55s10 42 26 55M184 83c16 13 26 33 26 55s-10 42-26 55" fill="none" stroke="#42d6a4" stroke-width="10" stroke-linecap="round" opacity=".9"/>
+  <circle cx="128" cy="128" r="6" fill="#f4f5f7"/>
+</svg>
