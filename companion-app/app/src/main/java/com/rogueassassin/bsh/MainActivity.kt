@@ -1,9 +1,6 @@
 package com.rogueassassin.bsh
 
 import android.os.Bundle
-import android.content.Intent
-import android.net.Uri
-import androidx.core.content.FileProvider
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -24,7 +21,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import java.io.File
 
 private val Bg = Color(0xFF090B10)
 private val Surface = Color(0xFF141821)
