@@ -1,14 +1,14 @@
 # Changelog
 
-## v1.3.0-testing
+## v1.3.0
 - Preserved bounded Bluetooth health and recovery history across reboot instead of deleting longitudinal diagnostics at every boot.
 - Added watchdog PID, service-start and heartbeat state for detecting a stalled service process.
 - Extended verification to distinguish a responsive watchdog from a process with a stale heartbeat.
 - Added safe min/max validation for numeric shared-storage configuration overrides.
 - Expanded diagnostics with watchdog heartbeat age and persistent recovery counts.
-- Began the Rogue ecosystem branding refresh with a compact monogram and consistent README badge/header system.
-- Kept evidence-based adapter recovery, recovery cooldowns and conservative OEM profiles unchanged.
-- Documented the architecture direction for an optional companion manager app without introducing Zygisk/Xposed hooks.
+- Replaced legacy project graphics with the supplied full-resolution BSH banner and logo and removed superseded branding assets.
+- Added explicit recovery states, normalized fault events and post-recovery verification while keeping existing cooldowns and conservative OEM profiles.
+- Added bounded structured telemetry intended for diagnostics and a future optional companion manager app without introducing Zygisk/Xposed hooks.
 
 ## v1.2.0
 - Replaced inactive legacy installer callbacks with a modern top-level `customize.sh` flow compatible with current Magisk module installation behaviour.
