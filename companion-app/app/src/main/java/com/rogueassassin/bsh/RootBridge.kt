@@ -25,6 +25,13 @@ object RootBridge {
             .getOrDefault(false)
     }
 
+    fun generateDiagnostics(): Result<String> = runCatching {
+        val script = "/data/adb/modules/btstabilityhelper/scripts/diagnostics.sh"
+        if (!exists(script)) throw IOException("BSH diagnostics script is unavailable")
+        runRoot("MODDIR=/data/adb/modules/btstabilityhelper sh " + quote(script) + " >/dev/null 2>&1; cat /sdcard/Bluetooth-Stability-Helper/state/last-diagnostic-bundle")
+            .trim()
+    }
+
     fun rootAvailable(): Boolean = runCatching { runRoot("id").contains("uid=0") }.getOrDefault(false)
 
     fun rootProvider(): String = runCatching {
