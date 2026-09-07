@@ -28,11 +28,16 @@ SESSION_START_FILE="$STATE_DIR/vpgp3_session_start"
 LAST_STALE_FILE="$STATE_DIR/vpgp3_last_stale"
 LAST_HEALTH_EXPORT_FILE="$STATE_DIR/last_health_export"
 RECOVERY_HISTORY_FILE="$CONFIG_DIR/metrics/recovery-history.jsonl"
+EVENT_HISTORY_FILE="$CONFIG_DIR/metrics/events.jsonl"
+RECOVERY_STATE_FILE="$STATE_DIR/recovery-state"
+LAST_RECOVERY_OUTCOME_FILE="$STATE_DIR/last-recovery-outcome"
 INTERACTION_FREEZE_FILE="$STATE_DIR/interaction_freeze_count"
 LAST_INTERACTION_RECOVERY_FILE="$STATE_DIR/last_interaction_recovery"
 mkdir -p "$STATE_DIR" "$CONFIG_DIR" "$CONFIG_DIR/logs" "$EXPORT_DIR" "$CONFIG_DIR/import" "$CONFIG_DIR/metrics"
 . "$MODDIR/common/config.sh"
 . "$MODDIR/scripts/lib.sh"
+. "$MODDIR/scripts/telemetry.sh"
+telemetry_init
 
 rotate_log_if_needed() { log_rotate_enforce 2>/dev/null; log_storage_guard 2>/dev/null; }
 
@@ -44,11 +49,9 @@ cleanup_boot_logs() {
   find "$STATE_DIR" -type f -name 'logdedup_*' -delete 2>/dev/null
   find "$STATE_DIR" -type f -name 'fault-signature-*' -delete 2>/dev/null
   rm -f "$STATE_DIR/last-fresh-fault-epoch" "$STATE_DIR/last-fresh-fault.txt" 2>/dev/null
-  # Preserve longitudinal metrics across reboot; bounded retention is enforced below.
-  if [ -f "$RECOVERY_HISTORY_FILE" ]; then
-    tail -n "${METRICS_HISTORY_MAX_LINES:-500}" "$RECOVERY_HISTORY_FILE" > "$RECOVERY_HISTORY_FILE.tmp" 2>/dev/null &&
-      mv "$RECOVERY_HISTORY_FILE.tmp" "$RECOVERY_HISTORY_FILE" 2>/dev/null
-  fi
+  # Preserve longitudinal health/recovery data across reboot.
+  trim_jsonl "$RECOVERY_HISTORY_FILE" "${METRICS_HISTORY_MAX_LINES:-500}"
+  trim_jsonl "$EVENT_HISTORY_FILE" "${EVENT_HISTORY_MAX_LINES:-500}"
   echo "$(date '+%F %T')  Boot cleanup completed: old logs/exports removed" > "$LOG"
 }
 
@@ -66,7 +69,12 @@ cap_runtime_files() {
       rm -f "$f" 2>/dev/null
     done
   fi
-  [ -d "$CONFIG_DIR/metrics" ] && find "$CONFIG_DIR/metrics" -type f -size +${METRICS_MAX_KB:-512}k -exec sh -c ': > "$1"' _ {} \; 2>/dev/null
+  trim_jsonl "$RECOVERY_HISTORY_FILE" "${METRICS_HISTORY_MAX_LINES:-500}"
+  trim_jsonl "$EVENT_HISTORY_FILE" "${EVENT_HISTORY_MAX_LINES:-500}"
+  [ -f "$CONFIG_DIR/metrics/bluetooth-health.json" ] && {
+    size_kb=$(du -k "$CONFIG_DIR/metrics/bluetooth-health.json" 2>/dev/null | awk '{print $1}')
+    [ -n "$size_kb" ] && [ "$size_kb" -gt "${METRICS_MAX_KB:-512}" ] && : > "$CONFIG_DIR/metrics/bluetooth-health.json"
+  }
 }
 wait_until_boot_complete() { until [ "$(getprop sys.boot_completed)" = "1" ]; do sleep 5; done; sleep 25; }
 ensure_files() {
@@ -303,7 +311,19 @@ pokemon_stack_health_bad() {
 }
 
 count_recent_restarts() { now=$(date +%s); cutoff=$((now - 3600)); [ -f "$RESTARTS_FILE" ] || { echo 0; return; }; awk -v cutoff="$cutoff" '$1 >= cutoff {count++} END {print count+0}' "$RESTARTS_FILE"; }
-record_restart() { now=$(date +%s); echo "$now" >> "$RESTARTS_FILE"; echo "$now" > "$LAST_RECOVERY_FILE"; mkdir -p "$CONFIG_DIR/metrics"; echo "{\"timestamp\":\"$(date '+%F %T')\",\"action\":\"bt_refresh\",\"score\":\"$(bluetooth_health_score 2>/dev/null)\",\"build_id\":\"$(build_id)\"}" >> "$RECOVERY_HISTORY_FILE"; }
+record_restart() {
+  reason="${1:-unknown}"; outcome="${2:-unknown}"
+  now=$(date +%s)
+  echo "$now" >> "$RESTARTS_FILE"
+  echo "$now" > "$LAST_RECOVERY_FILE"
+  mkdir -p "$CONFIG_DIR/metrics"
+  printf '{"schema":1,"epoch":%s,"timestamp":"%s","reason":"%s","action":"bt_refresh","outcome":"%s","score":%s,"build_id":"%s","profile":"%s"}\n' \
+    "$now" "$(date '+%F %T')" "$(json_escape "$reason")" "$(json_escape "$outcome")" \
+    "$(bluetooth_health_score 2>/dev/null || echo 0)" "$(json_escape "$(build_id)")" "$(json_escape "${PROFILE_ID:-unknown}")" >> "$RECOVERY_HISTORY_FILE"
+  trim_jsonl "$RECOVERY_HISTORY_FILE" "${METRICS_HISTORY_MAX_LINES:-500}"
+  set_last_recovery_outcome "$reason" "$outcome"
+  record_event "recovery" "info" "engine" "$reason" "bt_refresh" "$outcome"
+}
 recovery_cooldown_ok() { [ -f "$LAST_RECOVERY_FILE" ] || return 0; last=$(cat "$LAST_RECOVERY_FILE" 2>/dev/null); [ -z "$last" ] && return 0; delta=$(($(date +%s)-last)); [ "$delta" -ge "$RECOVERY_COOLDOWN" ]; }
 get_fail_count() { [ -f "$FAIL_COUNT_FILE" ] && cat "$FAIL_COUNT_FILE" || echo 0; }
 set_fail_count() { echo "$1" > "$FAIL_COUNT_FILE"; }
@@ -312,28 +332,78 @@ reset_fail_count() { set_fail_count 0; }
 cleanup_restart_history() { now=$(date +%s); cutoff=$((now-7200)); [ -f "$RESTARTS_FILE" ] && awk -v cutoff="$cutoff" '$1 >= cutoff' "$RESTARTS_FILE" > "$RESTARTS_FILE.tmp" && mv "$RESTARTS_FILE.tmp" "$RESTARTS_FILE"; }
 repair_audio_route() { [ "$ENABLE_AUDIO_ROUTE_REPAIR" = 1 ] || return; cmd media_session volume --show >/dev/null 2>&1; dumpsys audio >/dev/null 2>&1; log "Audio route repair hint executed"; }
 
+verify_recovery_outcome() {
+  [ "$(bt_enabled_setting)" = 1 ] || return 1
+  [ "$(bt_process_count)" -gt 0 ] || return 1
+  health_bad_state && return 1
+  return 0
+}
+
 restart_bt_stack() {
-  [ "$(bt_enabled_setting)" = 1 ] || { log "Recovery skipped: Bluetooth is off"; return; }
-  recent=$(count_recent_restarts); [ "$recent" -ge "$MAX_RESTARTS_PER_HOUR" ] && { log "Recovery skipped: max restarts reached $recent/$MAX_RESTARTS_PER_HOUR"; return; }
-  recovery_cooldown_ok || { log "Recovery skipped: cooldown active"; return; }
-  fails=$(get_fail_count); repair_audio_route
-  if [ "$ENABLE_BLUETOOTH_APP_FORCE_STOP" = 1 ] && [ "$fails" -ge 3 ]; then am force-stop com.android.bluetooth >/dev/null 2>&1; sleep 2; log "Bluetooth app force-stop attempted"; fi
-  if [ "$ENABLE_ADAPTER_TOGGLE_RECOVERY" = 1 ]; then
-    log "Bluetooth adapter confirmed-fault refresh recovery"
-    pixel_connectivity_snapshot
-    if svc bluetooth disable >/dev/null 2>&1; then
-      sleep 4
-      if svc bluetooth enable >/dev/null 2>&1; then
-        sleep 7
-        record_restart
-        now=$(date +%s); echo "$now" > "$SESSION_START_FILE"
-      else
-        log "Recovery error: Bluetooth enable command failed"
-      fi
-    else
-      log "Recovery error: Bluetooth disable command failed"
-    fi
+  reason="${1:-$(cat "$STATE_DIR/last-fault-type" 2>/dev/null)}"
+  [ -n "$reason" ] || reason="confirmed_fault"
+
+  if [ "$(bt_enabled_setting)" != 1 ]; then
+    log "Recovery skipped: Bluetooth is off"
+    record_event "recovery_skipped" "info" "engine" "$reason" "bt_refresh" "bluetooth_off"
+    return 1
   fi
+  recent=$(count_recent_restarts)
+  if [ "$recent" -ge "$MAX_RESTARTS_PER_HOUR" ]; then
+    log "Recovery skipped: max restarts reached $recent/$MAX_RESTARTS_PER_HOUR"
+    record_event "recovery_skipped" "warning" "engine" "$reason" "bt_refresh" "hourly_limit"
+    return 1
+  fi
+  if ! recovery_cooldown_ok; then
+    log "Recovery skipped: cooldown active"
+    set_recovery_state "COOLDOWN"
+    record_event "recovery_skipped" "info" "engine" "$reason" "bt_refresh" "cooldown"
+    return 1
+  fi
+  [ "$ENABLE_ADAPTER_TOGGLE_RECOVERY" = 1 ] || {
+    record_event "recovery_skipped" "info" "engine" "$reason" "bt_refresh" "disabled"
+    return 1
+  }
+
+  set_recovery_state "RECOVERY_PENDING"
+  fails=$(get_fail_count)
+  repair_audio_route
+  if [ "$ENABLE_BLUETOOTH_APP_FORCE_STOP" = 1 ] && [ "$fails" -ge 3 ]; then
+    am force-stop com.android.bluetooth >/dev/null 2>&1
+    sleep 2
+    log "Bluetooth app force-stop attempted"
+  fi
+
+  set_recovery_state "RECOVERING"
+  log "Bluetooth adapter confirmed-fault refresh recovery: reason=$reason"
+  pixel_connectivity_snapshot
+  if ! svc bluetooth disable >/dev/null 2>&1; then
+    log "Recovery error: Bluetooth disable command failed"
+    record_restart "$reason" "disable_failed"
+    set_recovery_state "DEGRADED"
+    return 1
+  fi
+
+  sleep 4
+  if ! svc bluetooth enable >/dev/null 2>&1; then
+    log "Recovery error: Bluetooth enable command failed"
+    record_restart "$reason" "enable_failed"
+    set_recovery_state "DEGRADED"
+    return 1
+  fi
+
+  sleep 7
+  if verify_recovery_outcome; then
+    record_restart "$reason" "success"
+    set_recovery_state "COOLDOWN"
+    now=$(date +%s); echo "$now" > "$SESSION_START_FILE"
+    return 0
+  fi
+
+  log "Recovery verification failed: Bluetooth did not return to a healthy state"
+  record_restart "$reason" "verification_failed"
+  set_recovery_state "DEGRADED"
+  return 1
 }
 
 periodic_health_export() {
@@ -344,6 +414,13 @@ periodic_health_export() {
   score=$(export_bluetooth_health_score 2>/dev/null)
   [ -n "$score" ] && log "Bluetooth health score: $score"
   return 0
+}
+
+refresh_recovery_state() {
+  state=$(recovery_state)
+  if [ "$state" = "COOLDOWN" ]; then
+    recovery_cooldown_ok && set_recovery_state "HEALTHY"
+  fi
 }
 
 write_status() {
@@ -364,11 +441,11 @@ Pixel Android 17 guard: $(is_pixel_android17 && echo active || echo inactive)
 Active Pokémon GO: ${go:-none}
 Active Pokemod/$VPGP3_DISPLAY_NAME: ${pm:-none}
 Bluetooth health score: $(bluetooth_health_score 2>/dev/null)
+Recovery state: $(recovery_state)
+Last fault type: $(cat "$STATE_DIR/last-fault-type" 2>/dev/null || echo none)
+Last recovery outcome: $(last_recovery_outcome)
 Active Bluetooth-aware game/app: ${game:-none}
 Last updated: $(date '+%F %T')
-Service PID: $(cat "$STATE_DIR/service.pid" 2>/dev/null)
-Service heartbeat epoch: $(cat "$STATE_DIR/service-heartbeat" 2>/dev/null)
-Service start epoch: $(cat "$STATE_DIR/service-start-time" 2>/dev/null)
 Logs: $LOG
 EOF
 }
@@ -376,15 +453,27 @@ EOF
 main_loop() {
   echo "$" > "$STATE_DIR/service.pid" 2>/dev/null
   echo "$(date +%s)" > "$STATE_DIR/service-start-time" 2>/dev/null
+  set_recovery_state "HEALTHY"
   while true; do
     echo "$(date +%s)" > "$STATE_DIR/service-heartbeat" 2>/dev/null
     rotate_log_if_needed; cleanup_restart_history; cap_runtime_files; ensure_files
+    refresh_recovery_state
     . "$MODDIR/common/config.sh"; . "$MODDIR/scripts/lib.sh"; apply_adaptive_defaults
     bad=0
     if [ "$WATCHDOG_ENABLED" = 1 ]; then
       proc_count=$(bt_process_count)
-      [ "$ENABLE_BT_PROCESS_CHECK" = 1 ] && [ "${ENABLE_STRICT_BT_PROCESS_CHECK:-0}" = 1 ] && [ "$(bt_enabled_setting)" = 1 ] && [ "$proc_count" -eq 0 ] && { log "Bluetooth enabled but no known Bluetooth process found"; bad=1; }
-      [ "$ENABLE_BT_MANAGER_CHECK" = 1 ] && health_bad_state && { log "bluetooth_manager did not report ON/true"; bad=1; }
+      if [ "$ENABLE_BT_PROCESS_CHECK" = 1 ] && [ "${ENABLE_STRICT_BT_PROCESS_CHECK:-0}" = 1 ] && [ "$(bt_enabled_setting)" = 1 ] && [ "$proc_count" -eq 0 ]; then
+        log "Bluetooth enabled but no known Bluetooth process found"
+        echo "bt_process_missing" > "$STATE_DIR/last-fault-type"
+        record_event "fault" "error" "process_check" "Bluetooth enabled but no known Bluetooth process found" "" ""
+        bad=1
+      fi
+      if [ "$ENABLE_BT_MANAGER_CHECK" = 1 ] && health_bad_state; then
+        log "bluetooth_manager did not report ON/true"
+        echo "bt_manager_bad_state" > "$STATE_DIR/last-fault-type"
+        record_event "fault" "error" "manager_check" "bluetooth_manager did not report ON/true" "" ""
+        bad=1
+      fi
       location_health_check
       periodic_health_export
       # Bond/CDM observers are diagnostic only. Android 17 performs autonomous
@@ -400,14 +489,16 @@ main_loop() {
         if [ -z "$last_signal" ] || [ $((now-last_signal)) -gt "${FAILURE_WINDOW_SECONDS:-180}" ]; then reset_fail_count; fi
         echo "$now" > "$LAST_FAILURE_SIGNAL_FILE"
         fails=$(increment_fail_count)
+        [ "$fails" -ge "$FAILURE_THRESHOLD" ] && set_recovery_state "DEGRADED" || set_recovery_state "SUSPECT"
         log "Failure evidence: $fails/$FAILURE_THRESHOLD within ${FAILURE_WINDOW_SECONDS:-180}s"
         if [ "$fails" -ge "$FAILURE_THRESHOLD" ]; then
-          restart_bt_stack
+          restart_bt_stack "$(cat "$STATE_DIR/last-fault-type" 2>/dev/null)"
           reset_fail_count
           reset_interaction_freeze_count
           rm -f "$LAST_FAILURE_SIGNAL_FILE" 2>/dev/null
         fi
       elif [ -n "$last_signal" ] && [ $((now-last_signal)) -gt "${FAILURE_WINDOW_SECONDS:-180}" ]; then
+        [ "$(recovery_state)" = "COOLDOWN" ] || set_recovery_state "HEALTHY"
         reset_fail_count
         reset_interaction_freeze_count
         rm -f "$LAST_FAILURE_SIGNAL_FILE" 2>/dev/null
