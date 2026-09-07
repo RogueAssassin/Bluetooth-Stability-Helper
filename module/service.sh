@@ -44,8 +44,11 @@ cleanup_boot_logs() {
   find "$STATE_DIR" -type f -name 'logdedup_*' -delete 2>/dev/null
   find "$STATE_DIR" -type f -name 'fault-signature-*' -delete 2>/dev/null
   rm -f "$STATE_DIR/last-fresh-fault-epoch" "$STATE_DIR/last-fresh-fault.txt" 2>/dev/null
-  : > "$RECOVERY_HISTORY_FILE" 2>/dev/null
-  : > "$CONFIG_DIR/metrics/bluetooth-health.json" 2>/dev/null
+  # Preserve longitudinal metrics across reboot; bounded retention is enforced below.
+  if [ -f "$RECOVERY_HISTORY_FILE" ]; then
+    tail -n "${METRICS_HISTORY_MAX_LINES:-500}" "$RECOVERY_HISTORY_FILE" > "$RECOVERY_HISTORY_FILE.tmp" 2>/dev/null &&
+      mv "$RECOVERY_HISTORY_FILE.tmp" "$RECOVERY_HISTORY_FILE" 2>/dev/null
+  fi
   echo "$(date '+%F %T')  Boot cleanup completed: old logs/exports removed" > "$LOG"
 }
 
@@ -363,12 +366,18 @@ Active Pokemod/$VPGP3_DISPLAY_NAME: ${pm:-none}
 Bluetooth health score: $(bluetooth_health_score 2>/dev/null)
 Active Bluetooth-aware game/app: ${game:-none}
 Last updated: $(date '+%F %T')
+Service PID: $(cat "$STATE_DIR/service.pid" 2>/dev/null)
+Service heartbeat epoch: $(cat "$STATE_DIR/service-heartbeat" 2>/dev/null)
+Service start epoch: $(cat "$STATE_DIR/service-start-time" 2>/dev/null)
 Logs: $LOG
 EOF
 }
 
 main_loop() {
+  echo "$" > "$STATE_DIR/service.pid" 2>/dev/null
+  echo "$(date +%s)" > "$STATE_DIR/service-start-time" 2>/dev/null
   while true; do
+    echo "$(date +%s)" > "$STATE_DIR/service-heartbeat" 2>/dev/null
     rotate_log_if_needed; cleanup_restart_history; cap_runtime_files; ensure_files
     . "$MODDIR/common/config.sh"; . "$MODDIR/scripts/lib.sh"; apply_adaptive_defaults
     bad=0
