@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.4.0-testing
+- Added manager API schema v1 under `/sdcard/Bluetooth-Stability-Helper/api/` for the upcoming optional companion app.
+- Added atomic read-only status, capabilities and config-schema JSON snapshots.
+- Exposed health score, selected profile, recovery state, fault/outcome context, Bluetooth state, watchdog heartbeat and Android/build information through the manager contract.
+- Published validated safe configuration ranges for future manager controls without permitting arbitrary shell execution.
+- Integrated manager snapshots into the service loop, Magisk Action, diagnostics export and verification flow.
+- Added `docs/MANAGER_API.md` defining the app/module boundary and security model.
+- Kept the Magisk module fully standalone; no companion app is required for recovery or monitoring.
+
 ## v1.3.0
 - Preserved bounded Bluetooth health and recovery history across reboot instead of deleting longitudinal diagnostics at every boot.
 - Added watchdog PID, service-start and heartbeat state for detecting a stalled service process.
