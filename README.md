@@ -30,8 +30,8 @@ It is particularly useful for long-running Bluetooth-heavy sessions such as **Po
 - reversible optional tuning with uninstall restoration
 - capped event-based logging and diagnostics
 - modern Magisk installer and non-destructive verification tooling
-- read-only manager API for the companion app
-- native Android companion app for health, event timeline and support views
+- boot-ready schema-v3 manager API for the companion app
+- native Android companion app for health, event timeline, full device/engine context and sanitized diagnostic reports
 - companion APK is built into the module package and installed/updated during module installation when available
 
 ## How it works
@@ -148,7 +148,7 @@ The watchdog now includes a low-overhead periodic runtime self-check for writabl
 
 The native Android companion app lives in `companion-app/`. It does not replace the Magisk module or implement recovery itself.
 
-The app provides live module health and recovery state, OEM profile/build context, watchdog/Bluetooth state, a normalized event timeline and support status. It exposes no arbitrary shell console or generic root command channel.
+The app provides live module health and recovery state, OEM/device/build/root context, effective watchdog/recovery settings, API lifecycle/freshness, a normalized event timeline and locally generated sanitized diagnostic support reports. It exposes no arbitrary shell console or generic root command channel.
 
 The app uses the schema-versioned read-only manager contract and reads only fixed BSH runtime paths through root. Official v1.7+ APKs use one persistent signing identity across testing and stable releases, enforced by CI certificate verification. The canonical manager snapshot lives inside the Magisk module tree, with a best-effort shared-storage mirror for diagnostics. The module continues to operate normally if the app is not installed.
 
