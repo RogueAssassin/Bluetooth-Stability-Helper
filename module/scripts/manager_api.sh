@@ -91,8 +91,8 @@ manager_api_write_status() {
   state=$(recovery_state 2>/dev/null); [ -n "$state" ] || state=UNKNOWN
   fault=$(cat "${STATE_DIR:-/sdcard/Bluetooth-Stability-Helper/state}/last-fault-type" 2>/dev/null); [ -n "$fault" ] || fault=none
   outcome=$(last_recovery_outcome 2>/dev/null); [ -n "$outcome" ] || outcome=none
-  go=$(active_pokemon_go 2>/dev/null); [ -n "$go" ] || go=none
-  pm=$(active_pokemod 2>/dev/null); [ -n "$pm" ] || pm=none
+  go=$(active_pokemon_go 2>/dev/null || true); [ -n "$go" ] || go=none
+  pm=$(active_pokemod 2>/dev/null || true); [ -n "$pm" ] || pm=none
   cat > "$tmp" <<EOF
 {
   "schema": $API_SCHEMA_VERSION,
