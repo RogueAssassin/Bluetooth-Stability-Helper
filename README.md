@@ -6,8 +6,8 @@
 
 **Pixel-first Adaptive Bluetooth Stability Engine for Android**
 
-[![Release](https://img.shields.io/badge/RELEASE-1.3.0%20STABLE-8b5cf6?style=for-the-badge&labelColor=45464d)](https://github.com/RogueAssassin/Bluetooth-Stability-Helper/tree/main)
-[![Build](https://img.shields.io/github/actions/workflow/status/RogueAssassin/Bluetooth-Stability-Helper/package.yml?branch=main&style=for-the-badge&label=BUILD&labelColor=45464d)](https://github.com/RogueAssassin/Bluetooth-Stability-Helper/actions/workflows/package.yml?query=branch%3Atesting)
+[![Release](https://img.shields.io/badge/TESTING-1.4.0-8b5cf6?style=for-the-badge&labelColor=45464d)](https://github.com/RogueAssassin/Bluetooth-Stability-Helper/tree/testing)
+[![Build](https://img.shields.io/github/actions/workflow/status/RogueAssassin/Bluetooth-Stability-Helper/package.yml?branch=testing&style=for-the-badge&label=BUILD&labelColor=45464d)](https://github.com/RogueAssassin/Bluetooth-Stability-Helper/actions/workflows/package.yml?query=branch%3Atesting)
 ![Android](https://img.shields.io/badge/ANDROID-12--17-00cbe6?style=for-the-badge&labelColor=45464d)
 ![Profile](https://img.shields.io/badge/PROFILE-PIXEL%20FIRST-42d6a4?style=for-the-badge&labelColor=45464d)
 
@@ -16,6 +16,20 @@
 Bluetooth Stability Helper is a Magisk module designed to improve Android Bluetooth, BLE, GATT, Companion Device, location, and idle-service stability. It is built mainly for Google Pixel devices while retaining safer support for other Android brands.
 
 It is especially useful when Bluetooth-heavy apps are active, including **Pokémon GO**, **Pokemod from Pokemod.dev**, and **VPGP³+** style virtual accessory sessions.
+
+## 1.4.0 testing — companion-app foundation
+
+The 1.4 testing line adds a stable, read-only manager data contract so the upcoming companion app can display detailed health and recovery information without duplicating the root recovery engine.
+
+- publishes atomic `api/status.json`, `api/capabilities.json`, and `api/config-schema.json` snapshots
+- declares API schema version 1 for future app compatibility
+- exposes health score, OEM profile, recovery state, last fault/outcome, adapter/process state, watchdog heartbeat, Android/build data and supported active-app state
+- exposes bounded telemetry/recovery file locations for timeline and support views
+- documents safe config min/max values for future UI controls
+- deliberately provides no arbitrary shell command channel or generic remote root execution
+- refreshes manager data from the service, Magisk Action and diagnostics flows
+
+See [Manager API](docs/MANAGER_API.md) for the contract and security boundary.
 
 ## 1.3.0 stable
 
@@ -28,7 +42,7 @@ Bluetooth Stability Helper 1.3.0 focuses on observability and long-session relia
 - uses the supplied full-resolution BSH banner and logo as the canonical Rogue-style project branding
 - adds a HEALTHY → SUSPECT → DEGRADED → RECOVERY_PENDING → RECOVERING → COOLDOWN state model while keeping adapter recovery evidence-based and conservative
 
-A future companion manager app is planned as an optional status, configuration and support-bundle surface. The root module remains fully functional without it and does not require Zygisk/Xposed hooks.
+An optional companion manager app is now being prepared against the v1.4 read-only manager contract as a status, configuration and support-bundle surface. The root module remains fully functional without it and does not require Zygisk/Xposed hooks.
 
 ## Key features
 
