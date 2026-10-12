@@ -18,7 +18,7 @@ The canonical companion API lives privately under:
 /data/adb/modules/btstabilityhelper/runtime/api/
 ```
 
-v1.7 adds a lightweight runtime self-check that reports repeated storage/process degradation through telemetry without creating a second recovery loop.
+A lightweight runtime self-check that reports repeated storage/process degradation through telemetry without creating a second recovery loop.
 
 ## Companion
 

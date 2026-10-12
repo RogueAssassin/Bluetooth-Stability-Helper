@@ -51,9 +51,15 @@ ENABLE_ANDROID16_BOND_LOSS_OBSERVE=1
 ENABLE_ANDROID16_JOB_STANDBY_GUARD=1
 
 # Android 17 / Pixel firmware guard. Detection is SDK-first because stable and
-# QPR build families vary by device/channel. CP31 covers the current QPR1 line.
-PIXEL_ANDROID17_KNOWN_BUILD_PREFIXES="CP21 CP2A CP31 AP3A BP3A"
+# QPR build families vary by device/channel.
+# - CP2A/CP31/CP3A: Android 17 monthly lines for Pixel 6 through Pixel 10a
+#   (CP3A.261005 is the October 2026 release).
+# - CD1A: Pixel 11 series device-specific Android 17 line.
+# - DP11: Android 17 QPR3 beta builds (reported as preview firmware).
+PIXEL_ANDROID17_KNOWN_BUILD_PREFIXES="CP21 CP2A CP31 CP3A CD1A DP11 AP3A BP3A"
 PIXEL_ANDROID17_JULY2026_BUILD_PREFIX="CP2A.260705"
+PIXEL_ANDROID17_OCTOBER2026_BUILD_PREFIXES="CP3A.261005 CD1A.261005"
+PIXEL_PREVIEW_BUILD_PREFIXES="DP11"
 ENABLE_PIXEL_ANDROID17_GUARD=1
 PIXEL_ANDROID17_WATCHDOG_INTERVAL=25
 PIXEL_ANDROID17_RECOVERY_COOLDOWN=600

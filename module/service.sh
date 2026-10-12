@@ -467,6 +467,8 @@ Recovery evidence: ${FAILURE_THRESHOLD} faults within ${FAILURE_WINDOW_SECONDS}s
 Adapter recovery: ${ENABLE_ADAPTER_TOGGLE_RECOVERY} (max ${MAX_RESTARTS_PER_HOUR}/hour, cooldown ${RECOVERY_COOLDOWN}s)
 Pixel May 2026 CP1A guard: $(is_pixel_android16_may2026 && echo active || echo inactive)
 Pixel Android 17 guard: $(is_pixel_android17 && echo active || echo inactive)
+Pixel Android 17 build family: $(is_known_pixel_android17_build_family && echo known || echo unrecognised)
+Preview/beta firmware: $(is_android_preview_build && echo yes || echo no)
 Active Pokémon GO: ${go:-none}
 Active Pokemod/$VPGP3_DISPLAY_NAME: ${pm:-none}
 Bluetooth health score: $(bluetooth_health_score 2>/dev/null)

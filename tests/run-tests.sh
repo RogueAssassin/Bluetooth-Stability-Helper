@@ -37,6 +37,9 @@ grep -q '^SERVICE_SELF_HEAL_ENABLED=1$' "$MODDIR/common/config.sh"
 grep -q '^SERVICE_SELF_HEAL_INTERVAL_SECONDS=120$' "$MODDIR/common/config.sh"
 grep -Fq 'service_self_check()' "$MODDIR/service.sh"
 grep -Fq 'INSTALL_FAILED_UPDATE_INCOMPATIBLE' "$MODDIR/scripts/install_utils.sh"
+grep -Fq 'bsh_check_manager_features' "$MODDIR/scripts/install_utils.sh"
+grep -q 'CP3A' "$MODDIR/common/config.sh"
+grep -q 'CD1A' "$MODDIR/common/config.sh"
 grep -q '^APPLY_APP_OPS_FIXES=0$' "$MODDIR/common/config.sh"
 ! grep -q '\[ -f "$USERCFG" \] && \. "$USERCFG"' "$MODDIR/service.sh"
 ! grep -q '\[ -f "$LOCAL_USER_CONFIG" \] && \. "$LOCAL_USER_CONFIG"' "$MODDIR/scripts/diagnostics.sh"
@@ -61,7 +64,7 @@ telemetry_init
 . "$MODDIR/scripts/manager_api.sh"
 reset_test_paths() { STATE_DIR="$tmp/state"; CONFIG_DIR="$tmp/config"; LOG="$tmp/test.log"; }
 
-MOCK_BRAND=google; MOCK_MAKER=Google; MOCK_MODEL='Pixel 8'; MOCK_SDK=37; MOCK_BUILD=CP2A.260705.006
+MOCK_BRAND=google; MOCK_MAKER=Google; MOCK_MODEL='Pixel 8'; MOCK_SDK=37; MOCK_BUILD=CP2A.260705.006; MOCK_CODENAME=REL
 getprop() {
   case "$1" in
     ro.product.brand) echo "$MOCK_BRAND" ;;
@@ -72,6 +75,7 @@ getprop() {
     ro.build.id) echo "$MOCK_BUILD" ;;
     ro.build.fingerprint) echo "$MOCK_BRAND/$MOCK_MODEL/$MOCK_BUILD" ;;
     ro.build.version.release) echo 17 ;;
+    ro.build.version.codename) echo "$MOCK_CODENAME" ;;
     ro.build.version.security_patch) echo 2026-07-05 ;;
     sys.boot_completed) echo 1 ;;
     *) echo "" ;;
@@ -98,6 +102,33 @@ MOCK_BRAND=HUAWEI; MOCK_MAKER=HUAWEI; MOCK_MODEL='HUAWEI'; MOCK_SDK=37
 apply_device_profile
 [ "$PROFILE_ID" = huawei ]
 [ "$ENABLE_ADAPTER_TOGGLE_RECOVERY" = 0 ]
+
+# Current Pixel Android 17 firmware families are recognised.
+. "$MODDIR/common/config.sh"
+reset_test_paths
+MOCK_BRAND=google; MOCK_MAKER=Google; MOCK_MODEL='Pixel 9'; MOCK_SDK=37; MOCK_BUILD=CP3A.261005.005; MOCK_CODENAME=REL
+apply_device_profile
+[ "$PROFILE_ID" = pixel ]
+is_known_pixel_android17_build_family
+is_pixel_android17_october2026
+if is_android_preview_build; then echo "stable Pixel build reported as preview" >&2; exit 1; fi
+
+MOCK_MODEL='Pixel 11 Pro'; MOCK_BUILD=CD1A.261005.003
+[ "$(device_profile_id)" = pixel ]
+is_known_pixel_android17_build_family
+is_pixel_android17_october2026
+
+# Beta firmware is reported but keeps the Pixel recovery policy.
+. "$MODDIR/common/config.sh"
+reset_test_paths
+MOCK_MODEL='Pixel 10'; MOCK_BUILD=DP11.260918.006
+apply_device_profile
+[ "$PROFILE_ID" = pixel ]
+[ "$FAILURE_THRESHOLD" = 2 ]
+is_android_preview_build
+MOCK_BUILD=CP3A.261005.005; MOCK_CODENAME=CinnamonBun
+is_android_preview_build
+MOCK_MODEL='Pixel 8'; MOCK_BUILD=CP2A.260705.006; MOCK_CODENAME=REL
 
 . "$MODDIR/common/config.sh"
 reset_test_paths
@@ -171,6 +202,8 @@ grep -q '"manufacturer": "Google"' "$API_STATUS_FILE"
 grep -q '"root_provider":' "$API_STATUS_FILE"
 grep -q '"service_uptime_seconds":' "$API_STATUS_FILE"
 grep -q '"failure_threshold":' "$API_STATUS_FILE"
+grep -q '"android_codename": "REL"' "$API_STATUS_FILE"
+grep -q '"android_preview_build": "no"' "$API_STATUS_FILE"
 grep -Fq 'BSH-Diagnostics-' "$MODDIR/scripts/diagnostics.sh"
 grep -Fq 'REDACTED-MAC' "$MODDIR/scripts/diagnostics.sh"
 grep -q '"read_only": true' "$API_CAPABILITIES_FILE"

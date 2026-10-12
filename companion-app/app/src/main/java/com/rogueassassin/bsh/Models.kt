@@ -18,7 +18,7 @@ data class BshStatus(
     val androidSdk:String, val androidRelease:String, val brand:String, val manufacturer:String,
     val model:String, val device:String, val buildId:String, val buildFingerprint:String,
     val securityPatch:String, val activePokemonGo:String, val activePokemod:String,
-    val settings:BshSettings
+    val settings:BshSettings, val androidCodename:String = "unknown", val previewBuild:String = "unknown"
 ) {
  companion object {
   fun parse(raw:String):BshStatus {
@@ -35,7 +35,8 @@ data class BshStatus(
     BshSettings(s.optString("watchdog_enabled","unknown"),s.optString("watchdog_interval","unknown"),s.optString("failure_threshold","unknown"),
      s.optString("failure_window_seconds","unknown"),s.optString("recovery_cooldown","unknown"),s.optString("max_restarts_per_hour","unknown"),
      s.optString("adapter_toggle_recovery","unknown"),s.optString("interaction_freeze_guard","unknown"),s.optString("stale_session_minutes","unknown"),
-     s.optString("ble_scan_always_enabled","unknown"),s.optString("location_mode","unknown"))
+     s.optString("ble_scan_always_enabled","unknown"),s.optString("location_mode","unknown")),
+    j.optString("android_codename","unknown"),j.optString("android_preview_build","unknown")
    )
   }
  }

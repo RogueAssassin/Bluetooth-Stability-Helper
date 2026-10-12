@@ -6,12 +6,12 @@ The companion is the optional native Android presentation/support layer for Blue
 
 - **Overview** — root/module/API state, health score, recovery state, Bluetooth state and heartbeat.
 - **Activity** — newest bounded normalized engine events.
-- **Device** — profile, device, Android/build/security-patch and supported-app context.
+- **Device** — profile, device, Android/build/security-patch (including preview/beta firmware) and supported-app context.
 - **Support** — root provider, module enabled state, manager API schema/source and refresh state.
 
 ## Data access
 
-The app detects the module independently from `/data/adb/modules/btstabilityhelper/module.prop`, then reads the canonical private schema-2 API. It falls back to the shared-storage API mirror when needed. Schema 1 remains accepted for migration compatibility.
+The app detects the module independently from `/data/adb/modules/btstabilityhelper/module.prop`, then reads the canonical private schema-3 API. It falls back to the shared-storage API mirror when needed. Schema 1 remains accepted for migration compatibility.
 
 Root access is restricted to fixed BSH paths. The app has no arbitrary shell UI and does not make Bluetooth recovery decisions.
 
@@ -22,6 +22,8 @@ Published companion APKs use one persistent BSH release certificate on both `tes
 v1.5/v1.6 used disposable debug signing, so an already-installed old companion may need to be removed once before installing the permanently signed v1.7+ app.
 
 ## Build
+
+Toolchain: Android Gradle Plugin 9.4 (built-in Kotlin), Kotlin 2.4.20, Gradle 9.8+, JDK 17 or newer, compile/target SDK 37 (Android 17), minimum SDK 31 (Android 12).
 
 Release/package builds require the canonical signing environment:
 

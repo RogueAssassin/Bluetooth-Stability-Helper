@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.9.0
+- Recognised the current Pixel Android 17 firmware families: the October 2026 `CP3A.261005` line (Pixel 6 through Pixel 10a) and the Pixel 11 series `CD1A` line.
+- Added preview/beta firmware detection (non-REL codename or Android 17 QPR3 beta `DP11` builds). It is reported in the status file, manager API and companion app without changing recovery policy.
+- Added additive `android_codename` and `android_preview_build` fields to the manager API status snapshot (schema remains 3).
+- Fixed APatch being reported as KernelSU in the installer and companion app when both markers are present.
+- Added an installer notice when Magisk is older than 28.0, which lacks module Action button support.
+- Companion app now targets and compiles against Android 17 (API 37) with explicit edge-to-edge handling.
+- Upgraded the companion toolchain to Android Gradle Plugin 9.4 with built-in Kotlin, Kotlin 2.4.20, Gradle 9.8.1 and the 2026.09 Compose BOM.
+- Updated CI to current action releases and JDK 21, and run packaging checks on pull requests.
+
 ## v1.8.0
 - Added Manager API schema 3 with BOOTING/READY lifecycle, service uptime, root environment, expanded device/build metadata and effective recovery settings.
 - Publish an initial manager snapshot during module startup and refresh the complete READY snapshot after Android boot/profile initialization.

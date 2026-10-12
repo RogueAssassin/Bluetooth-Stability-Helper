@@ -19,7 +19,7 @@ A best-effort human/support mirror is also written to:
 /sdcard/Bluetooth-Stability-Helper/api/
 ```
 
-The current API schema is **3**. The v1.8 companion accepts schemas 1–3 for migration compatibility.
+The current API schema is **3**. The companion accepts schemas 1–3 for migration compatibility. v1.9 added the `android_codename` and `android_preview_build` fields; they are additive, so the schema number is unchanged and older apps ignore them.
 
 ## status.json
 
@@ -31,7 +31,7 @@ Declares the read-only manager capabilities and the canonical/mirror locations. 
 
 ## config-schema.json
 
-Documents the safe configuration subset and min/max validation enforced by the restricted `user-config.sh` parser. It is descriptive in v1.7; the app does not write root configuration.
+Documents the safe configuration subset and min/max validation enforced by the restricted `user-config.sh` parser. It is descriptive only; the app does not write root configuration.
 
 ## Security boundary
 

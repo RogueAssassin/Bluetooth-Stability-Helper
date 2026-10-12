@@ -175,6 +175,20 @@ is_android17_or_newer() { [ "$(sdk_int)" -ge "$ANDROID17_SDK" ]; }
 is_pixel_android17() { is_pixel_device || return 1; is_android17_or_newer || return 1; }
 is_known_pixel_android17_build_family() { is_pixel_android17 || return 1; bid="$(build_id)"; fp="$(build_fingerprint)"; for prefix in $PIXEL_ANDROID17_KNOWN_BUILD_PREFIXES; do echo "$bid $fp" | grep -q "$prefix" && return 0; done; return 1; }
 is_pixel_android17_july2026_cp2a() { is_pixel_android17 || return 1; bid="$(build_id)"; fp="$(build_fingerprint)"; echo "$bid $fp" | grep -q "${PIXEL_ANDROID17_JULY2026_BUILD_PREFIX:-CP2A.260705}"; }
+is_pixel_android17_october2026() { is_pixel_android17 || return 1; bid="$(build_id)"; fp="$(build_fingerprint)"; for prefix in $PIXEL_ANDROID17_OCTOBER2026_BUILD_PREFIXES; do echo "$bid $fp" | grep -q "$prefix" && return 0; done; return 1; }
+android_codename() { getprop ro.build.version.codename 2>/dev/null; }
+# Beta/canary firmware: a non-REL codename, or a known Pixel beta build family.
+# Reported for diagnostics only; recovery policy is unchanged.
+is_android_preview_build() {
+  codename="$(android_codename)"
+  [ -n "$codename" ] && [ "$codename" != "REL" ] && return 0
+  is_pixel_device || return 1
+  bid="$(build_id)"
+  for prefix in $PIXEL_PREVIEW_BUILD_PREFIXES; do
+    case "$bid" in "$prefix"*) return 0 ;; esac
+  done
+  return 1
+}
 brand_lc() { getprop ro.product.brand 2>/dev/null | tr '[:upper:]' '[:lower:]'; }
 manufacturer_lc() { getprop ro.product.manufacturer 2>/dev/null | tr '[:upper:]' '[:lower:]'; }
 is_pixel_device() { [ "$(brand_lc)" = "google" ] || echo "$(getprop ro.product.model 2>/dev/null)" | grep -qi '^pixel'; }

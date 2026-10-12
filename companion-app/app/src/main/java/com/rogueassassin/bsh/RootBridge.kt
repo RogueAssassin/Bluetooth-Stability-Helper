@@ -35,7 +35,7 @@ object RootBridge {
     fun rootAvailable(): Boolean = runCatching { runRoot("id").contains("uid=0") }.getOrDefault(false)
 
     fun rootProvider(): String = runCatching {
-        runRoot("command -v magisk >/dev/null 2>&1 && echo Magisk || (command -v ksud >/dev/null 2>&1 && echo KernelSU || echo Root)")
+        runRoot("if command -v apd >/dev/null 2>&1; then echo APatch; elif command -v ksud >/dev/null 2>&1; then echo KernelSU; elif command -v magisk >/dev/null 2>&1; then echo Magisk; else echo Root; fi")
             .trim().ifBlank { "Root" }
     }.getOrDefault("Unknown")
 

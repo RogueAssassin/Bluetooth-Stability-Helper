@@ -10,6 +10,7 @@
 [![Build](https://img.shields.io/github/actions/workflow/status/RogueAssassin/Bluetooth-Stability-Helper/package.yml?branch=main&style=for-the-badge&label=BUILD&labelColor=45464d)](https://github.com/RogueAssassin/Bluetooth-Stability-Helper/actions/workflows/package.yml?query=branch%3Amain)
 ![Android](https://img.shields.io/badge/ANDROID-12--17-00cbe6?style=for-the-badge&labelColor=45464d)
 ![Profile](https://img.shields.io/badge/PROFILE-PIXEL%20FIRST-42d6a4?style=for-the-badge&labelColor=45464d)
+![Pixel](https://img.shields.io/badge/PIXEL-6%20to%2011-4285f4?style=for-the-badge&labelColor=45464d)
 
 </div>
 
@@ -24,6 +25,7 @@ It is particularly useful for long-running Bluetooth-heavy sessions such as **Po
 - explicit recovery-state tracking with cooldowns and hourly recovery limits
 - conservative OEM-specific profiles with a safe generic fallback
 - Android 16/17 Companion Device and bond-change awareness
+- current Pixel Android 17 firmware awareness, including Pixel 11 and QPR beta builds
 - persistent bounded health, event and recovery telemetry
 - watchdog heartbeat and post-recovery verification
 - restricted, validated user configuration
@@ -51,11 +53,19 @@ See **[ARCHITECTURE.md](ARCHITECTURE.md)** for the complete boot, monitoring, re
 - Android 14
 - Android 15
 - Android 16
-- Android 17
+- Android 17 (including the October 2026 Pixel release and QPR3 beta builds)
+
+Beta/preview firmware is detected and reported in diagnostics. Recovery policy is unchanged on beta builds that report a supported SDK level. Android releases newer than 17 run in diagnostic-only mode until they are validated.
+
+### Root managers
+
+- Magisk 28.0 or newer is recommended (required for the module Action button)
+- KernelSU and its common forks
+- APatch
 
 | Device family | Runtime profile | Default recovery policy |
 | --- | --- | --- |
-| Google Pixel | Primary Pixel | 2 faults in 3 minutes; maximum 2 recoveries/hour |
+| Google Pixel (Pixel 6 – Pixel 11) | Primary Pixel | 2 faults in 3 minutes; maximum 2 recoveries/hour |
 | Samsung / One UI | Conservative Samsung | 3 faults in 4 minutes; maximum 1 recovery/hour |
 | Xiaomi / Redmi / Poco | Conservative Xiaomi | 3 faults in 4 minutes; maximum 1 recovery/hour |
 | OnePlus / Oppo / Realme | Conservative OPlus | 3 faults in 4 minutes; maximum 1 recovery/hour |
@@ -140,9 +150,9 @@ The Magisk Action, companion app and `verify.sh` expose:
 - Companion Device and permission state
 - bounded diagnostics exports
 
-## v1.7 runtime reliability
+## Runtime reliability
 
-The watchdog now includes a low-overhead periodic runtime self-check for writable BSH state/metrics storage and the abnormal case where Bluetooth is enabled but no known Bluetooth process exists. It reports repeated degradation through bounded telemetry without bypassing the existing evidence threshold, cooldown or recovery caps.
+The watchdog includes a low-overhead periodic runtime self-check for writable BSH state/metrics storage and the abnormal case where Bluetooth is enabled but no known Bluetooth process exists. It reports repeated degradation through bounded telemetry without bypassing the existing evidence threshold, cooldown or recovery caps.
 
 ## Companion app
 

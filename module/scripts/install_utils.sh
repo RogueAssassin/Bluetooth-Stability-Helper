@@ -12,8 +12,8 @@ bsh_prop() { getprop "$1" 2>/dev/null; }
 bsh_lc() { tr '[:upper:]' '[:lower:]'; }
 
 bsh_manager_name() {
-  if [ -n "${KSU:-}" ] || [ -d /data/adb/ksu ]; then echo "KernelSU"
-  elif [ -n "${APATCH:-}" ] || [ -d /data/adb/ap ]; then echo "APatch"
+  if [ -n "${APATCH:-}" ] || [ -d /data/adb/ap ]; then echo "APatch"
+  elif [ -n "${KSU:-}" ] || [ -d /data/adb/ksu ]; then echo "KernelSU"
   else echo "Magisk"
   fi
 }
@@ -22,6 +22,7 @@ bsh_manager_version() {
   case "$(bsh_manager_name)" in
     Magisk)
       ver=$(magisk -v 2>/dev/null); code=$(magisk -V 2>/dev/null)
+      [ -n "$code" ] || code="${MAGISK_VER_CODE:-}"
       echo "${ver:-unknown}${code:+ ($code)}"
       ;;
     KernelSU) echo "${KSU_VER:-${KSU_VERSION:-unknown}}${KSU_VER_CODE:+ ($KSU_VER_CODE)}" ;;
@@ -127,6 +128,18 @@ bsh_install_mode() {
   fi
 }
 
+# Module Action buttons (action.sh) require Magisk 28.0+. Older managers still
+# run the module; diagnostics remain available through verify.sh.
+bsh_check_manager_features() {
+  [ "$(bsh_manager_name)" = "Magisk" ] || return 0
+  code=$(magisk -V 2>/dev/null || true); [ -n "$code" ] || code="${MAGISK_VER_CODE:-}"
+  case "$code" in ''|*[!0-9]*) return 0 ;; esac
+  if [ "$code" -lt 28000 ]; then
+    ui_print "! Magisk $code does not support module Action buttons (28.0+ required)"
+    ui_print "! Update Magisk for the Action button; the module still runs normally"
+  fi
+}
+
 bsh_validate_environment() {
   [ -n "${MODPATH:-}" ] || abort "! Missing module installation path"
   [ -n "${ZIPFILE:-}" ] || abort "! Missing installer ZIP path"
@@ -135,6 +148,7 @@ bsh_validate_environment() {
     ui_print "! Android SDK is outside the validated Android 12-17 range."
     ui_print "! Safe generic diagnostics will be used; vendor tuning is disabled."
   fi
+  bsh_check_manager_features
 }
 
 bsh_copy_upgrade_state() {
@@ -177,6 +191,7 @@ bsh_write_install_report() {
     echo "Android: $(bsh_prop ro.build.version.release) / SDK $(bsh_prop ro.build.version.sdk)"
     echo "Build: $(bsh_prop ro.build.id)"
     echo "Security patch: $(bsh_prop ro.build.version.security_patch)"
+    echo "Codename: $(bsh_prop ro.build.version.codename)"
     echo "Architecture: $(bsh_prop ro.product.cpu.abi)"
     echo "SELinux: $(bsh_selinux_mode)"
     echo "Bluetooth stack: $(bsh_bt_stack_summary)"

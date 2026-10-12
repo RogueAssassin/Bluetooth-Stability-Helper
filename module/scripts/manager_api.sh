@@ -136,6 +136,8 @@ manager_api_write_status() {
   "watchdog_heartbeat_age_seconds": "$(manager_api_heartbeat_age)",
   "android_sdk": "$(sdk_int 2>/dev/null)",
   "android_release": "$(manager_api_json_escape "$(getprop ro.build.version.release 2>/dev/null)")",
+  "android_codename": "$(manager_api_json_escape "$(android_codename 2>/dev/null)")",
+  "android_preview_build": "$(is_android_preview_build 2>/dev/null && echo yes || echo no)",
   "brand": "$(manager_api_json_escape "$(getprop ro.product.brand 2>/dev/null)")",
   "manufacturer": "$(manager_api_json_escape "$(getprop ro.product.manufacturer 2>/dev/null)")",
   "model": "$(manager_api_json_escape "$(getprop ro.product.model 2>/dev/null)")",

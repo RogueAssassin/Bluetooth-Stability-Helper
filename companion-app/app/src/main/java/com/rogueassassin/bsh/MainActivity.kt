@@ -3,6 +3,7 @@ package com.rogueassassin.bsh
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -35,6 +36,7 @@ private val Muted = Color(0xFF9AA5B4)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent { BshApp() }
     }
@@ -185,7 +187,7 @@ private fun Device(snapshot: CompanionSnapshot) {
         item { InfoCard("Brand / model", s?.let { it.brand + " / " + it.model } ?: "Waiting for API") }
         item { InfoCard("Device", s?.device ?: "Waiting for API") }
         item { InfoCard("Android", if (s != null) s.androidRelease + " / SDK " + s.androidSdk else "Waiting for API") }
-        item { InfoCard("Build", s?.buildId ?: "Waiting for API") }
+        item { InfoCard("Build", s?.let { if (it.previewBuild == "yes") it.buildId + " • preview/beta" else it.buildId } ?: "Waiting for API") }
         item { InfoCard("Security patch", s?.securityPatch ?: "Waiting for API") }
         item { InfoCard("Build fingerprint", s?.buildFingerprint ?: "Waiting for API") }
         if (s != null) {

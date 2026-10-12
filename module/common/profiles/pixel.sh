@@ -18,6 +18,7 @@ apply_profile_pixel() {
     STALE_SESSION_MINUTES="$PIXEL_ANDROID17_STALE_SESSION_MINUTES"
     FAILURE_THRESHOLD="$PIXEL_ANDROID17_FAILURE_THRESHOLD"
     log "Pixel Android 17 guard: build=$(build_id) known_family=$(is_known_pixel_android17_build_family && echo yes || echo no)"
+    is_android_preview_build && log "Pixel Android 17 guard: preview/beta firmware detected; policy unchanged"
   elif [ "$ENABLE_PIXEL_MAY2026_CP1A_GUARD" = 1 ] && is_pixel_android16_may2026; then
     WATCHDOG_INTERVAL="$PIXEL_CP1A_WATCHDOG_INTERVAL"
     RECOVERY_COOLDOWN="$PIXEL_CP1A_RECOVERY_COOLDOWN"
