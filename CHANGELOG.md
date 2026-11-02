@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.11.0
+- Added Pixel hardware generation detection, parsed from the model name (e.g. `Pixel 10`, `Pixel 9 Pro XL`, `Pixel 6a` → 10/9/6) with a confirmed `frankel` = Pixel 10 codename fallback, plus a coarse SoC-era grouping (early/mid/current-tensor).
+- Report `pixel_generation` and `pixel_soc_era` in `status.txt`, the manager API (additive fields; schema remains 3) and the companion Device view.
+- Restructured the Pixel profile with `apply_pixel_generation_overrides()`. It is intentionally a no-op: the validated conservative Pixel policy is identical across generations. Per-generation recovery thresholds are not invented without real per-device evidence; detection/reporting is the prerequisite for bucketing diagnostics by hardware so a generation can later be tuned on data.
+- Added tests for generation/SoC parsing across Pixel models and non-Pixel devices.
+
 ## v1.10.0
 - Added an ACL link-instability observer: it counts abnormal ACL disconnects (`reason:8` connection/supervision timeout, `reason:34` LL response timeout, and the configurable `11`/`40`/`61`) reported by `dumpsys bluetooth_manager` while the adapter stays ON. Benign reasons such as `19` (remote user terminated) and `22` (local host terminated) are never counted.
 - New disconnects are detected by anchoring on the previously seen newest line, so the bounded dump ring buffer cannot be double-counted; the first scan only establishes a baseline and a per-tick cap bounds buffer rollovers. This targets the common Pixel symptom where the HAL never crashes but the link keeps flapping, which the existing log-pattern observers did not catch.

@@ -164,6 +164,8 @@ manager_api_write_status() {
   "manufacturer": "$(manager_api_json_escape "$(getprop ro.product.manufacturer 2>/dev/null)")",
   "model": "$(manager_api_json_escape "$(getprop ro.product.model 2>/dev/null)")",
   "device": "$(manager_api_json_escape "$(getprop ro.product.device 2>/dev/null)")",
+  "pixel_generation": "$(pixel_generation 2>/dev/null)",
+  "pixel_soc_era": "$(manager_api_json_escape "$(pixel_soc_era 2>/dev/null)")",
   "build_fingerprint": "$(manager_api_json_escape "$(getprop ro.build.fingerprint 2>/dev/null)")",
   "build_id": "$(manager_api_json_escape "$(build_id 2>/dev/null)")",
   "security_patch": "$(manager_api_json_escape "$(security_patch 2>/dev/null)")",

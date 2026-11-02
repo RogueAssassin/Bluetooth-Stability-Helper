@@ -130,6 +130,16 @@ MOCK_BUILD=CP3A.261005.005; MOCK_CODENAME=CinnamonBun
 is_android_preview_build
 MOCK_MODEL='Pixel 8'; MOCK_BUILD=CP2A.260705.006; MOCK_CODENAME=REL
 
+# Pixel generation / SoC era parsed from the model name.
+MOCK_BRAND=google; MOCK_MAKER=Google
+MOCK_MODEL='Pixel 10'; [ "$(pixel_generation)" = 10 ]; [ "$(pixel_soc_era)" = current-tensor ]
+MOCK_MODEL='Pixel 9 Pro XL'; [ "$(pixel_generation)" = 9 ]; [ "$(pixel_soc_era)" = mid-tensor ]
+MOCK_MODEL='Pixel 8 Pro'; [ "$(pixel_generation)" = 8 ]
+MOCK_MODEL='Pixel 6a'; [ "$(pixel_generation)" = 6 ]; [ "$(pixel_soc_era)" = early-tensor ]
+MOCK_MODEL='Pixel 11'; [ "$(pixel_generation)" = 11 ]; [ "$(pixel_soc_era)" = current-tensor ]
+MOCK_BRAND=samsung; MOCK_MAKER=samsung; MOCK_MODEL='SM-S928B'; [ "$(pixel_generation)" = 0 ]; [ "$(pixel_soc_era)" = unknown ]
+MOCK_BRAND=google; MOCK_MAKER=Google; MOCK_MODEL='Pixel 8'
+
 . "$MODDIR/common/config.sh"
 reset_test_paths
 MOCK_BRAND=unknown; MOCK_MAKER=unknown; MOCK_MODEL=unknown; MOCK_SDK=38
