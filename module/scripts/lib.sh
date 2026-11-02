@@ -199,7 +199,8 @@ acl_abnormal_lines() {
 acl_new_abnormal_count() {
   dump="$1"
   prevfile="$STATE_DIR/acl-last-line"
-  prev=$(cat "$prevfile" 2>/dev/null)
+  prev=""
+  [ -f "$prevfile" ] && prev=$(cat "$prevfile" 2>/dev/null)
   lines=$(acl_abnormal_lines < "$dump")
   [ -n "$lines" ] || { echo 0; return; }
   newest=$(printf '%s\n' "$lines" | tail -n1)
@@ -234,7 +235,9 @@ acl_abnormal_window_count() {
 # observer so scoring stays side-effect free (no second prune/dump per tick).
 acl_instability_penalty() {
   [ "${ENABLE_ACL_INSTABILITY_GUARD:-1}" = 1 ] || { echo 0; return; }
-  c=$(cat "$STATE_DIR/acl-window-count" 2>/dev/null); case "$c" in ''|*[!0-9]*) c=0 ;; esac
+  c=0
+  [ -f "$STATE_DIR/acl-window-count" ] && c=$(cat "$STATE_DIR/acl-window-count" 2>/dev/null)
+  case "$c" in ''|*[!0-9]*) c=0 ;; esac
   [ "$c" -le 0 ] && { echo 0; return; }
   p=$((c * 7)); [ "$p" -gt 30 ] && p=30; echo "$p"
 }
