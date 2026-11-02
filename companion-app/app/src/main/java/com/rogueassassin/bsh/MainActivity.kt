@@ -4,18 +4,24 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.Image
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -24,22 +30,19 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private val Bg = Color(0xFF090B10)
-private val Surface = Color(0xFF141821)
-private val Surface2 = Color(0xFF1B202B)
-private val Accent = Color(0xFF00D7F2)
-private val Purple = Color(0xFF8B5CF6)
-private val Green = Color(0xFF34E77B)
-private val Amber = Color(0xFFFFB454)
-private val Red = Color(0xFFFF657A)
-private val Muted = Color(0xFF9AA5B4)
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        setContent { BshApp() }
+        setContent { BshTheme { BshApp() } }
     }
+}
+
+private fun scoreColor(score: Int): Color = when {
+    score >= 85 -> Status.good
+    score >= 65 -> Status.ok
+    score >= 40 -> Status.warn
+    else -> Status.bad
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,7 +58,6 @@ private fun BshApp() {
         snapshot = withContext(Dispatchers.IO) { BshRepository.load() }
         loading = false
     }
-
     LaunchedEffect(Unit) {
         while (true) {
             delay(30_000)
@@ -63,37 +65,37 @@ private fun BshApp() {
         }
     }
 
-    MaterialTheme(colorScheme = darkColorScheme(primary = Accent, secondary = Purple, background = Bg, surface = Surface)) {
-        Scaffold(
-            containerColor = Bg,
-            topBar = {
-                TopAppBar(
-                    title = { Text("BSH Companion", fontWeight = FontWeight.SemiBold) },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Bg)
+    val labels = listOf("Overview", "Activity", "Device", "Support")
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Bluetooth Stability Helper", fontWeight = FontWeight.SemiBold) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
                 )
-            },
-            bottomBar = {
-                NavigationBar(containerColor = Surface) {
-                    listOf("Overview", "Activity", "Device", "Support").forEachIndexed { index, label ->
-                        NavigationBarItem(
-                            selected = tab == index,
-                            onClick = { tab = index },
-                            icon = { Text(listOf("●", "≡", "◇", "?")[index]) },
-                            label = { Text(label) }
-                        )
-                    }
+            )
+        },
+        bottomBar = {
+            NavigationBar {
+                labels.forEachIndexed { index, label ->
+                    NavigationBarItem(
+                        selected = tab == index,
+                        onClick = { tab = index },
+                        icon = { NavGlyph(index, tab == index) },
+                        label = { Text(label) }
+                    )
                 }
             }
-        ) { padding ->
-            Box(Modifier.fillMaxSize().padding(padding)) {
-                when {
-                    loading -> CenterMessage("Reading Bluetooth Stability Helper…")
-                    snapshot == null -> CenterMessage("Unable to load companion state.")
-                    tab == 0 -> Overview(snapshot!!) { refresh++ }
-                    tab == 1 -> Activity(snapshot!!)
-                    tab == 2 -> Device(snapshot!!)
-                    else -> Support(snapshot!!) { refresh++ }
-                }
+        }
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            when {
+                loading -> CenterMessage("Reading Bluetooth Stability Helper…")
+                snapshot == null -> CenterMessage("Unable to load companion state.")
+                tab == 0 -> Overview(snapshot!!) { refresh++ }
+                tab == 1 -> Activity(snapshot!!)
+                tab == 2 -> Device(snapshot!!)
+                else -> Support(snapshot!!) { refresh++ }
             }
         }
     }
@@ -102,21 +104,18 @@ private fun BshApp() {
 @Composable
 private fun Overview(snapshot: CompanionSnapshot, onRefresh: () -> Unit) {
     val s = snapshot.status
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Image(painterResource(R.drawable.bsh_logo), "BSH logo", Modifier.size(74.dp))
-                Column(Modifier.padding(start = 14.dp)) {
-                    Text("Bluetooth Stability Helper", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("Pixel-first recovery engine", color = Muted)
-                }
-            }
-        }
+    LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item { Spacer(Modifier.height(4.dp)) }
         item { StatusStrip(snapshot.module.detected && snapshot.module.enabled, s != null, snapshot.rootAvailable) }
         snapshot.error?.let { item { WarningCard(it) } }
 
         if (s != null) {
-            item { HealthCard(s.healthScore, s.recoveryState, s.profile) }
+            item { HeroHealthCard(s) }
+            snapshot.health?.let { h -> if (h.components.any { it.second > 0 }) item { ComponentCard(h) } }
+            s.acl?.let { item { AclCard(it) } }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     SmallMetric("Bluetooth", if (s.bluetoothEnabled == "1") "On" else s.bluetoothEnabled, Modifier.weight(1f))
@@ -126,7 +125,7 @@ private fun Overview(snapshot: CompanionSnapshot, onRefresh: () -> Unit) {
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     SmallMetric("BT services", s.bluetoothProcessCount, Modifier.weight(1f))
-                    SmallMetric("API", "v" + s.schema, Modifier.weight(1f))
+                    SmallMetric("API schema", "v" + s.schema, Modifier.weight(1f))
                 }
             }
             item { InfoCard("Last fault", friendlyNone(s.lastFaultType)) }
@@ -142,28 +141,163 @@ private fun Overview(snapshot: CompanionSnapshot, onRefresh: () -> Unit) {
 }
 
 @Composable
+private fun HeroHealthCard(s: BshStatus) {
+    val color = scoreColor(s.healthScore)
+    Card(
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(116.dp), contentAlignment = Alignment.Center) {
+                HealthRing(s.healthScore, color, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.16f))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        s.healthScore.toString(),
+                        color = color,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text("HEALTH", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            Column(Modifier.padding(start = 20.dp)) {
+                Text(
+                    s.recoveryState.replace('_', ' '),
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(Modifier.height(6.dp))
+                Chip(s.profile, MaterialTheme.colorScheme.primary)
+                Text(
+                    "Adaptive recovery status",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HealthRing(score: Int, ringColor: Color, trackColor: Color) {
+    val sweep by animateFloatAsState(
+        targetValue = 360f * (score.coerceIn(0, 100) / 100f),
+        label = "healthRing"
+    )
+    Canvas(Modifier.size(116.dp).padding(6.dp)) {
+        val strokeW = 13.dp.toPx()
+        val inset = strokeW / 2f
+        val arc = Size(size.width - strokeW, size.height - strokeW)
+        drawArc(trackColor, 0f, 360f, false, topLeft = Offset(inset, inset), size = arc, style = Stroke(strokeW, cap = StrokeCap.Round))
+        drawArc(ringColor, -90f, sweep, false, topLeft = Offset(inset, inset), size = arc, style = Stroke(strokeW, cap = StrokeCap.Round))
+    }
+}
+
+@Composable
+private fun ComponentCard(h: BshHealth) {
+    Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            Text("Why this score", fontWeight = FontWeight.SemiBold)
+            Text(
+                "Points deducted per signal",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            h.components.filter { it.second > 0 }.sortedByDescending { it.second }.forEach { (name, penalty) ->
+                ComponentBar(componentLabel(name), penalty)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ComponentBar(label: String, penalty: Int) {
+    val fraction = (penalty / 35f).coerceIn(0f, 1f)
+    Column(Modifier.padding(top = 10.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+            Text("-$penalty", color = Status.warn, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+        }
+        Box(
+            Modifier.fillMaxWidth().padding(top = 4.dp).height(6.dp)
+                .clip(RoundedCornerShape(3.dp)).background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.14f))
+        ) {
+            Box(
+                Modifier.fillMaxWidth(fraction).height(6.dp)
+                    .clip(RoundedCornerShape(3.dp)).background(Status.warn)
+            )
+        }
+    }
+}
+
+@Composable
+private fun AclCard(acl: BshAcl) {
+    val count = acl.abnormalWindowCount
+    val threshold = acl.threshold.toIntOrNull() ?: 4
+    val color = when {
+        count >= threshold -> Status.bad
+        count > 0 -> Status.warn
+        else -> Status.good
+    }
+    Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Link stability (ACL)", fontWeight = FontWeight.SemiBold)
+                Text("$count / $threshold", color = color, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            }
+            Text(
+                "Abnormal disconnects in the last " + acl.windowSeconds + "s",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+            Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Chip(if (acl.guardEnabled == "1") "Guard on" else "Guard off", if (acl.guardEnabled == "1") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                Chip(if (acl.recoveryEnabled == "1") "Auto-recover" else "Observe-only", if (acl.recoveryEnabled == "1") Status.ok else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (acl.abnormalReasons.isNotBlank()) {
+                Text(
+                    "Reason codes watched: " + acl.abnormalReasons,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 10.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun Activity(snapshot: CompanionSnapshot) {
     if (snapshot.events.isEmpty()) {
         CenterMessage("No recent fault or recovery events have been recorded.")
         return
     }
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item {
-            Text("Activity", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text("Newest bounded engine events", color = Muted)
-        }
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        item { SectionHeader("Activity", "Newest bounded engine events") }
         items(snapshot.events) { event ->
-            Card(colors = CardDefaults.cardColors(containerColor = Surface), shape = RoundedCornerShape(16.dp)) {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(16.dp)) {
                 Column(Modifier.fillMaxWidth().padding(14.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(event.type.replace('_', ' '), color = Accent, fontWeight = FontWeight.SemiBold)
+                        Text(event.type.replace('_', ' '), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                         SeverityPill(event.severity)
                     }
                     if (event.message.isNotBlank()) Text(event.message, Modifier.padding(top = 7.dp))
                     if (event.action.isNotBlank() || event.outcome.isNotBlank()) {
-                        Text(listOf(event.action, event.outcome).filter { it.isNotBlank() }.joinToString(" • "), color = Green, modifier = Modifier.padding(top = 6.dp))
+                        Text(
+                            listOf(event.action, event.outcome).filter { it.isNotBlank() }.joinToString(" • "),
+                            color = Status.good,
+                            modifier = Modifier.padding(top = 6.dp)
+                        )
                     }
-                    Text(event.timestamp + " • " + event.source, color = Muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 9.dp))
+                    Text(
+                        event.timestamp + " • " + event.source,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 9.dp)
+                    )
                 }
             }
         }
@@ -173,11 +307,8 @@ private fun Activity(snapshot: CompanionSnapshot) {
 @Composable
 private fun Device(snapshot: CompanionSnapshot) {
     val s = snapshot.status
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item {
-            Text("Device", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text("Detected platform and module profile", color = Muted)
-        }
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item { SectionHeader("Device", "Detected platform and module profile") }
         item { InfoCard("Module", if (snapshot.module.detected) "v" + snapshot.module.version else "Not detected") }
         item { InfoCard("Module state", if (snapshot.module.enabled) "Enabled" else "Disabled / unavailable") }
         item { InfoCard("Profile", s?.profile ?: "Waiting for API") }
@@ -210,15 +341,11 @@ private fun Device(snapshot: CompanionSnapshot) {
 @Composable
 private fun Support(snapshot: CompanionSnapshot, onRefresh: () -> Unit) {
     val s = snapshot.status
-    val context = androidx.compose.ui.platform.LocalContext.current
     var diagnosticState by remember { mutableStateOf("") }
     var generating by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item {
-            Text("Support", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text("Installation and manager API diagnostics", color = Muted)
-        }
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item { SectionHeader("Support", "Installation and manager API diagnostics") }
         item { InfoCard("Root access", if (snapshot.rootAvailable) "Granted • " + snapshot.rootProvider else "Unavailable") }
         item { InfoCard("Module", if (snapshot.module.detected) "Detected • v" + snapshot.module.version else "Not detected") }
         item { InfoCard("Module enabled", if (snapshot.module.enabled) "Yes" else "No") }
@@ -247,6 +374,31 @@ private fun Support(snapshot: CompanionSnapshot, onRefresh: () -> Unit) {
 }
 
 @Composable
+private fun NavGlyph(index: Int, selected: Boolean) {
+    val c = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    Canvas(Modifier.size(22.dp)) {
+        val w = size.width; val h = size.height
+        val sw = 2.2.dp.toPx()
+        val stroke = Stroke(sw, cap = StrokeCap.Round)
+        when (index) {
+            0 -> drawCircle(c, radius = w * 0.33f, style = stroke) // Overview: health ring
+            1 -> for (i in 0..2) { // Activity: event lines
+                val y = h * (0.28f + 0.22f * i)
+                drawLine(c, Offset(w * 0.18f, y), Offset(w * 0.82f, y), strokeWidth = sw, cap = StrokeCap.Round)
+            }
+            2 -> drawRoundRect( // Device: chip
+                c, topLeft = Offset(w * 0.2f, h * 0.22f), size = Size(w * 0.6f, h * 0.56f),
+                cornerRadius = CornerRadius(w * 0.14f), style = stroke
+            )
+            else -> { // Support: ring + center dot
+                drawCircle(c, radius = w * 0.33f, style = stroke)
+                drawCircle(c, radius = sw, center = Offset(w / 2f, h / 2f))
+            }
+        }
+    }
+}
+
+@Composable
 private fun StatusStrip(moduleOk: Boolean, apiOk: Boolean, rootOk: Boolean) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         StatusPill("ROOT", rootOk, Modifier.weight(1f))
@@ -257,10 +409,11 @@ private fun StatusStrip(moduleOk: Boolean, apiOk: Boolean, rootOk: Boolean) {
 
 @Composable
 private fun StatusPill(label: String, ok: Boolean, modifier: Modifier) {
-    Surface(modifier = modifier, color = if (ok) Color(0xFF153328) else Color(0xFF35232A), shape = RoundedCornerShape(14.dp)) {
+    val color = if (ok) Status.good else Status.bad
+    Surface(modifier = modifier, color = color.copy(alpha = 0.16f), shape = RoundedCornerShape(14.dp)) {
         Text(
             label + if (ok) "  ✓" else "  !",
-            color = if (ok) Green else Red,
+            color = color,
             modifier = Modifier.padding(vertical = 10.dp),
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
@@ -269,52 +422,43 @@ private fun StatusPill(label: String, ok: Boolean, modifier: Modifier) {
 }
 
 @Composable
-private fun HealthCard(score: Int, state: String, profile: String) {
-    val accent = when {
-        score >= 85 -> Green
-        score >= 65 -> Accent
-        score >= 40 -> Amber
-        else -> Red
-    }
-    Card(colors = CardDefaults.cardColors(containerColor = Surface), shape = RoundedCornerShape(22.dp)) {
-        Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = CircleShape, color = accent.copy(alpha = 0.14f), modifier = Modifier.size(92.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(score.toString(), color = accent, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-                        Text("HEALTH", color = Muted, style = MaterialTheme.typography.labelSmall)
-                    }
-                }
-            }
-            Column(Modifier.padding(start = 18.dp)) {
-                Text(state.replace('_', ' '), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                Text(profile, color = Accent)
-                Text("Adaptive recovery status", color = Muted, modifier = Modifier.padding(top = 3.dp))
-            }
-        }
+private fun Chip(text: String, color: Color) {
+    Surface(color = color.copy(alpha = 0.16f), shape = RoundedCornerShape(12.dp)) {
+        Text(text, color = color, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
     }
 }
 
 @Composable
 private fun SeverityPill(severity: String) {
     val color = when (severity.lowercase()) {
-        "error", "critical" -> Red
-        "warning", "warn" -> Amber
-        else -> Muted
+        "error", "critical" -> Status.bad
+        "warning", "warn" -> Status.warn
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
-    Surface(color = color.copy(alpha = 0.14f), shape = RoundedCornerShape(12.dp)) {
+    Surface(color = color.copy(alpha = 0.16f), shape = RoundedCornerShape(12.dp)) {
         Text(severity.uppercase(), color = color, modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall)
     }
 }
 
-@Composable private fun CenterMessage(message: String) =
-    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) { Text(message, color = Muted) }
+@Composable
+private fun SectionHeader(title: String, subtitle: String) {
+    Column(Modifier.padding(top = 4.dp)) {
+        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun CenterMessage(message: String) =
+    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+        Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+    }
 
 @Composable
 private fun SmallMetric(title: String, value: String, modifier: Modifier) {
-    Card(modifier, colors = CardDefaults.cardColors(containerColor = Surface2), shape = RoundedCornerShape(18.dp)) {
+    Card(modifier, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.padding(14.dp)) {
-            Text(title, color = Muted, style = MaterialTheme.typography.bodySmall)
+            Text(title, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             Text(value, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 3.dp))
         }
     }
@@ -322,9 +466,9 @@ private fun SmallMetric(title: String, value: String, modifier: Modifier) {
 
 @Composable
 private fun InfoCard(title: String, value: String) {
-    Card(colors = CardDefaults.cardColors(containerColor = Surface), shape = RoundedCornerShape(18.dp)) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.fillMaxWidth().padding(14.dp)) {
-            Text(title, color = Muted, style = MaterialTheme.typography.bodySmall)
+            Text(title, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             Text(value, Modifier.padding(top = 4.dp))
         }
     }
@@ -332,9 +476,18 @@ private fun InfoCard(title: String, value: String) {
 
 @Composable
 private fun WarningCard(message: String) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF342518)), shape = RoundedCornerShape(18.dp)) {
-        Text(message, Modifier.fillMaxWidth().padding(14.dp), color = Color(0xFFFFD39A))
+    Surface(color = Status.warn.copy(alpha = 0.16f), shape = RoundedCornerShape(18.dp)) {
+        Text(message, Modifier.fillMaxWidth().padding(14.dp), color = Status.warn)
     }
+}
+
+private fun componentLabel(name: String): String = when (name) {
+    "bluetooth_off" -> "Bluetooth off"
+    "no_bt_process" -> "No BT service process"
+    "adapter_bad_state" -> "Adapter bad state"
+    "recent_stall" -> "Recent stall"
+    "acl_instability" -> "ACL link instability"
+    else -> name.replace('_', ' ')
 }
 
 private fun heartbeat(age: Long) = when {
@@ -345,7 +498,6 @@ private fun heartbeat(age: Long) = when {
 
 private fun friendlyNone(value: String) =
     if (value.isBlank() || value == "none" || value == "unknown") "None recorded" else value
-
 
 private fun formatUptime(seconds: Long): String {
     if (seconds < 0) return "unknown"

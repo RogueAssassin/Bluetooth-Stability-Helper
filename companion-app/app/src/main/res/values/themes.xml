@@ -1,10 +1,9 @@
 <resources>
-    <!-- Edge-to-edge is enforced from Android 15; system bar colours are drawn by Compose. -->
-    <style name="Theme.BSH" parent="android:style/Theme.Material.NoActionBar">
-        <item name="android:fontFamily">sans</item>
-        <item name="android:colorAccent">#00D7F2</item>
-        <item name="android:windowBackground">#0B0D12</item>
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLightNavigationBar">false</item>
+    <!-- Pre-Compose window shell only. DayNight lets the brief launch background
+         follow the system light/dark setting; Compose (Material You) draws the
+         real UI and system bar colours immediately via enableEdgeToEdge(). -->
+    <style name="Theme.BSH" parent="android:Theme.DeviceDefault.DayNight">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
     </style>
 </resources>

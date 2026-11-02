@@ -9,6 +9,23 @@ data class BshSettings(
     val bleScanAlways:String, val locationMode:String
 )
 
+data class BshAcl(
+    val guardEnabled:String, val recoveryEnabled:String, val abnormalWindowCount:Int,
+    val windowSeconds:String, val threshold:String, val healthPenalty:Int, val abnormalReasons:String
+) {
+    companion object {
+        fun parse(j:JSONObject?):BshAcl? {
+            if (j == null) return null
+            return BshAcl(
+                j.optString("guard_enabled","1"), j.optString("recovery_enabled","0"),
+                j.optInt("abnormal_window_count",0), j.optString("window_seconds","240"),
+                j.optString("threshold","4"), j.optInt("health_penalty",0),
+                j.optString("abnormal_reasons","")
+            )
+        }
+    }
+}
+
 data class BshStatus(
     val schema:Int, val timestamp:String, val epoch:Long, val moduleVersion:String,
     val serviceState:String, val serviceStartEpoch:Long, val serviceUptimeSeconds:Long,
@@ -18,7 +35,8 @@ data class BshStatus(
     val androidSdk:String, val androidRelease:String, val brand:String, val manufacturer:String,
     val model:String, val device:String, val buildId:String, val buildFingerprint:String,
     val securityPatch:String, val activePokemonGo:String, val activePokemod:String,
-    val settings:BshSettings, val androidCodename:String = "unknown", val previewBuild:String = "unknown"
+    val settings:BshSettings, val androidCodename:String = "unknown", val previewBuild:String = "unknown",
+    val acl:BshAcl? = null
 ) {
  companion object {
   fun parse(raw:String):BshStatus {
@@ -36,14 +54,28 @@ data class BshStatus(
      s.optString("failure_window_seconds","unknown"),s.optString("recovery_cooldown","unknown"),s.optString("max_restarts_per_hour","unknown"),
      s.optString("adapter_toggle_recovery","unknown"),s.optString("interaction_freeze_guard","unknown"),s.optString("stale_session_minutes","unknown"),
      s.optString("ble_scan_always_enabled","unknown"),s.optString("location_mode","unknown")),
-    j.optString("android_codename","unknown"),j.optString("android_preview_build","unknown")
+    j.optString("android_codename","unknown"),j.optString("android_preview_build","unknown"),
+    BshAcl.parse(j.optJSONObject("acl_instability"))
    )
   }
  }
+}
+
+// Full health-score breakdown from metrics/bluetooth-health.json. The status API
+// carries the headline score; this adds the per-signal component contributions.
+data class BshHealth(val score:Int, val components:List<Pair<String,Int>>, val aclWindowCount:Int) {
+    companion object {
+        fun parse(raw:String):BshHealth? = runCatching {
+            val j = JSONObject(raw); val c = j.optJSONObject("components")
+            val comps = mutableListOf<Pair<String,Int>>()
+            if (c != null) for (k in c.keys()) comps.add(k to c.optInt(k, 0))
+            BshHealth(j.optInt("score", 0), comps, j.optInt("acl_abnormal_window_count", 0))
+        }.getOrNull()
+    }
 }
 
 data class BshEvent(val epoch:Long,val timestamp:String,val type:String,val severity:String,val source:String,val message:String,val action:String,val outcome:String) {
  companion object { fun parse(line:String):BshEvent?=runCatching { val j=JSONObject(line); BshEvent(j.optLong("epoch",0),j.optString("timestamp",""),j.optString("type","event"),j.optString("severity","info"),j.optString("source","engine"),j.optString("message",""),j.optString("action",""),j.optString("outcome","")) }.getOrNull() }
 }
 data class ModuleInfo(val detected:Boolean,val version:String,val enabled:Boolean)
-data class CompanionSnapshot(val rootAvailable:Boolean,val rootProvider:String,val module:ModuleInfo,val status:BshStatus?,val apiSource:String,val events:List<BshEvent>,val error:String?)
+data class CompanionSnapshot(val rootAvailable:Boolean,val rootProvider:String,val module:ModuleInfo,val status:BshStatus?,val apiSource:String,val events:List<BshEvent>,val error:String?,val health:BshHealth?=null)

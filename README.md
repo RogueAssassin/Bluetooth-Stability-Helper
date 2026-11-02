@@ -22,6 +22,8 @@ It is particularly useful for long-running Bluetooth-heavy sessions such as **Po
 
 - evidence-based Bluetooth health and recovery engine
 - fresh-fault detection for GATT, HAL, binder and adapter failures
+- abnormal ACL disconnect clustering (link-supervision / LL response timeouts) for the common case where the adapter stays ON but the link keeps flapping
+- weighted health score with a per-signal component breakdown
 - explicit recovery-state tracking with cooldowns and hourly recovery limits
 - conservative OEM-specific profiles with a safe generic fallback
 - Android 16/17 Companion Device and bond-change awareness
@@ -110,6 +112,13 @@ STALE_SESSION_MINUTES=20
 ENABLE_A2DP_OFFLOAD_DISABLE=0
 MAX_RESTARTS_PER_HOUR=2
 RECOVERY_COOLDOWN=600
+
+# ACL link-instability observer (observe-only by default).
+ENABLE_ACL_INSTABILITY_GUARD=1
+ACL_INSTABILITY_WINDOW_SECONDS=240
+ACL_INSTABILITY_THRESHOLD=4
+# Opt in to let an abnormal-disconnect cluster trigger the normal recovery ladder:
+ACL_INSTABILITY_RECOVERY_ENABLED=0
 ```
 
 Shared-storage configuration is parsed as a restricted set of validated scalar values. It is never executed as unrestricted root shell code.

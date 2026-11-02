@@ -6,6 +6,9 @@
 PRIVATE_API_DIR="${PRIVATE_API_DIR:-${MODDIR:-/data/adb/modules/btstabilityhelper}/runtime/api}"
 EXTERNAL_API_DIR="${EXTERNAL_API_DIR:-${CONFIG_DIR:-/sdcard/Bluetooth-Stability-Helper}/api}"
 API_DIR="${API_DIR:-$PRIVATE_API_DIR}"
+# Schema stays 3: the ACL and health-component fields below are purely additive
+# and older managers ignore unknown keys. The number bumps only on a breaking
+# change (precedent: v1.9.0 added fields while "schema remains 3").
 API_SCHEMA_VERSION=3
 API_STATUS_FILE="$API_DIR/status.json"
 API_CAPABILITIES_FILE="$API_DIR/capabilities.json"
@@ -44,10 +47,12 @@ manager_api_write_capabilities() {
   "external_mirror": "$EXTERNAL_API_DIR",
   "supports": {
     "health": true,
+    "health_components": true,
     "recovery_state": true,
     "fault_events": true,
     "recovery_history": true,
     "watchdog_heartbeat": true,
+    "acl_instability": true,
     "profile": true,
     "diagnostic_export": true,
     "config_schema": true,
@@ -69,6 +74,7 @@ manager_api_write_config_schema() {
   "write_policy": "future-manager-controlled-safe-overrides-only",
   "fields": {
     "WATCHDOG_INTERVAL": {"type":"integer","min":10,"max":300},
+    "WATCHDOG_JITTER_SECONDS": {"type":"integer","min":0,"max":60},
     "MAX_RESTARTS_PER_HOUR": {"type":"integer","min":0,"max":6},
     "FAILURE_THRESHOLD": {"type":"integer","min":1,"max":10},
     "FAILURE_WINDOW_SECONDS": {"type":"integer","min":30,"max":1800},
@@ -76,6 +82,11 @@ manager_api_write_config_schema() {
     "STALE_SESSION_MINUTES": {"type":"integer","min":5,"max":240},
     "ENABLE_ADAPTER_TOGGLE_RECOVERY": {"type":"boolean"},
     "ENABLE_INTERACTION_FREEZE_GUARD": {"type":"boolean"},
+    "ENABLE_ACL_INSTABILITY_GUARD": {"type":"boolean"},
+    "ACL_INSTABILITY_WINDOW_SECONDS": {"type":"integer","min":60,"max":1800},
+    "ACL_INSTABILITY_THRESHOLD": {"type":"integer","min":2,"max":20},
+    "ACL_INSTABILITY_MAX_NEW_PER_TICK": {"type":"integer","min":1,"max":50},
+    "ACL_INSTABILITY_RECOVERY_ENABLED": {"type":"boolean"},
     "LOG_IMPORTANT_ONLY": {"type":"boolean"}
   }
 }
@@ -102,6 +113,8 @@ manager_api_write_status() {
   metrics_dir="${CONFIG_DIR:-/sdcard/Bluetooth-Stability-Helper}/metrics"
   api_status_tmp="$API_STATUS_FILE.tmp"
   score=$(bluetooth_health_score 2>/dev/null); case "$score" in ''|*[!0-9]*) score=0 ;; esac
+  acl_count=$(cat "${STATE_DIR:-/sdcard/Bluetooth-Stability-Helper/state}/acl-window-count" 2>/dev/null); case "$acl_count" in ''|*[!0-9]*) acl_count=0 ;; esac
+  acl_pen=$(acl_instability_penalty 2>/dev/null); case "$acl_pen" in ''|*[!0-9]*) acl_pen=0 ;; esac
   profile="${PROFILE_ID:-$(device_profile_id 2>/dev/null)}"; [ -n "$profile" ] || profile=unknown
   state=$(recovery_state 2>/dev/null); [ -n "$state" ] || state=UNKNOWN
   fault=$(cat "${STATE_DIR:-/sdcard/Bluetooth-Stability-Helper/state}/last-fault-type" 2>/dev/null); [ -n "$fault" ] || fault=none
@@ -128,6 +141,15 @@ manager_api_write_status() {
   "zygisk": "$(manager_api_json_escape "$zygisk")",
   "profile": "$(manager_api_json_escape "$profile")",
   "health_score": $score,
+  "acl_instability": {
+    "guard_enabled": "${ENABLE_ACL_INSTABILITY_GUARD:-1}",
+    "recovery_enabled": "${ACL_INSTABILITY_RECOVERY_ENABLED:-0}",
+    "abnormal_window_count": $acl_count,
+    "window_seconds": "${ACL_INSTABILITY_WINDOW_SECONDS:-240}",
+    "threshold": "${ACL_INSTABILITY_THRESHOLD:-4}",
+    "health_penalty": $acl_pen,
+    "abnormal_reasons": "$(manager_api_json_escape "${ACL_ABNORMAL_DISCONNECT_REASONS:-8 11 34 40 61}")"
+  },
   "recovery_state": "$(manager_api_json_escape "$state")",
   "last_fault_type": "$(manager_api_json_escape "$fault")",
   "last_recovery_outcome": "$(manager_api_json_escape "$outcome")",

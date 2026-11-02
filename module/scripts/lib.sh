@@ -104,7 +104,11 @@ _numeric_override_in_range() {
     FRESH_FAULT_MAX_AGE_SECONDS) min=30; max=900 ;;
     STALE_SESSION_MINUTES) min=5; max=240 ;;
     INTERACTION_FREEZE_RECOVERY_AFTER_MATCHES) min=1; max=10 ;;
-    LOG_IMPORTANT_ONLY|LOG_BOOT_CLEAN|ENABLE_STALE_SESSION_WATCHDOG|STALE_SESSION_BT_REFRESH|ENABLE_INTERACTION_FREEZE_GUARD|ENABLE_ADAPTER_TOGGLE_RECOVERY|ENABLE_BLUETOOTH_APP_FORCE_STOP|ENABLE_A2DP_OFFLOAD_DISABLE|ENABLE_BLE_SCAN_ALWAYS|ENABLE_WIFI_SCAN_THROTTLE_OFF|ENABLE_LOCATION_BG_THROTTLE_OFF|APPLY_APP_OPS_FIXES|APPLY_RESTRICTED_STANDBY_FIXES|WHITELIST_BLUETOOTH|WHITELIST_GMS|WHITELIST_POKEMON_GO|WHITELIST_POKEMOD|RUN_DIAGNOSTICS_ON_BOOT) min=0; max=1 ;;
+    ACL_INSTABILITY_WINDOW_SECONDS) min=60; max=1800 ;;
+    ACL_INSTABILITY_THRESHOLD) min=2; max=20 ;;
+    ACL_INSTABILITY_MAX_NEW_PER_TICK) min=1; max=50 ;;
+    WATCHDOG_JITTER_SECONDS) min=0; max=60 ;;
+    LOG_IMPORTANT_ONLY|LOG_BOOT_CLEAN|ENABLE_STALE_SESSION_WATCHDOG|STALE_SESSION_BT_REFRESH|ENABLE_INTERACTION_FREEZE_GUARD|ENABLE_ADAPTER_TOGGLE_RECOVERY|ENABLE_BLUETOOTH_APP_FORCE_STOP|ENABLE_A2DP_OFFLOAD_DISABLE|ENABLE_BLE_SCAN_ALWAYS|ENABLE_WIFI_SCAN_THROTTLE_OFF|ENABLE_LOCATION_BG_THROTTLE_OFF|APPLY_APP_OPS_FIXES|APPLY_RESTRICTED_STANDBY_FIXES|WHITELIST_BLUETOOTH|WHITELIST_GMS|WHITELIST_POKEMON_GO|WHITELIST_POKEMOD|RUN_DIAGNOSTICS_ON_BOOT|ENABLE_ACL_INSTABILITY_GUARD|ACL_INSTABILITY_RECOVERY_ENABLED) min=0; max=1 ;;
   esac
   [ "$value" -ge "$min" ] 2>/dev/null && [ "$value" -le "$max" ] 2>/dev/null
 }
@@ -123,7 +127,7 @@ load_user_config() {
       \'*\') value=${value#\'}; value=${value%\'} ;;
     esac
     case "$key" in
-      WATCHDOG_INTERVAL|LOG_IMPORTANT_ONLY|LOG_DEDUP_SECONDS|LOG_BOOT_CLEAN|LOG_ROTATE_SIZE_KB|LOG_KEEP_ROTATED_COUNT|LOG_MAX_TOTAL_MB|EXPORT_MAX_FILES|METRICS_MAX_KB|SNAPSHOT_MAX_FILES|LOGCAT_CAPTURE_LINES|LOGCAT_CAPTURE_WINDOW_SECONDS|MAX_RESTARTS_PER_HOUR|FAILURE_THRESHOLD|FAILURE_WINDOW_SECONDS|RECOVERY_COOLDOWN|FRESH_FAULT_MAX_AGE_SECONDS|STALE_SESSION_MINUTES|ENABLE_STALE_SESSION_WATCHDOG|STALE_SESSION_BT_REFRESH|ENABLE_INTERACTION_FREEZE_GUARD|INTERACTION_FREEZE_RECOVERY_AFTER_MATCHES|ENABLE_ADAPTER_TOGGLE_RECOVERY|ENABLE_BLUETOOTH_APP_FORCE_STOP|ENABLE_A2DP_OFFLOAD_DISABLE|ENABLE_BLE_SCAN_ALWAYS|ENABLE_WIFI_SCAN_THROTTLE_OFF|ENABLE_LOCATION_BG_THROTTLE_OFF|APPLY_APP_OPS_FIXES|APPLY_RESTRICTED_STANDBY_FIXES|WHITELIST_BLUETOOTH|WHITELIST_GMS|WHITELIST_POKEMON_GO|WHITELIST_POKEMOD|RUN_DIAGNOSTICS_ON_BOOT)
+      WATCHDOG_INTERVAL|LOG_IMPORTANT_ONLY|LOG_DEDUP_SECONDS|LOG_BOOT_CLEAN|LOG_ROTATE_SIZE_KB|LOG_KEEP_ROTATED_COUNT|LOG_MAX_TOTAL_MB|EXPORT_MAX_FILES|METRICS_MAX_KB|SNAPSHOT_MAX_FILES|LOGCAT_CAPTURE_LINES|LOGCAT_CAPTURE_WINDOW_SECONDS|MAX_RESTARTS_PER_HOUR|FAILURE_THRESHOLD|FAILURE_WINDOW_SECONDS|RECOVERY_COOLDOWN|FRESH_FAULT_MAX_AGE_SECONDS|STALE_SESSION_MINUTES|ENABLE_STALE_SESSION_WATCHDOG|STALE_SESSION_BT_REFRESH|ENABLE_INTERACTION_FREEZE_GUARD|INTERACTION_FREEZE_RECOVERY_AFTER_MATCHES|ENABLE_ADAPTER_TOGGLE_RECOVERY|ENABLE_BLUETOOTH_APP_FORCE_STOP|ENABLE_A2DP_OFFLOAD_DISABLE|ENABLE_BLE_SCAN_ALWAYS|ENABLE_WIFI_SCAN_THROTTLE_OFF|ENABLE_LOCATION_BG_THROTTLE_OFF|APPLY_APP_OPS_FIXES|APPLY_RESTRICTED_STANDBY_FIXES|WHITELIST_BLUETOOTH|WHITELIST_GMS|WHITELIST_POKEMON_GO|WHITELIST_POKEMOD|RUN_DIAGNOSTICS_ON_BOOT|ENABLE_ACL_INSTABILITY_GUARD|ACL_INSTABILITY_WINDOW_SECONDS|ACL_INSTABILITY_THRESHOLD|ACL_INSTABILITY_MAX_NEW_PER_TICK|ACL_INSTABILITY_RECOVERY_ENABLED|WATCHDOG_JITTER_SECONDS)
         printf '%s' "$value" | grep -Eq '^[0-9]+$' || { log "Config warning: ignored invalid numeric override: $key"; continue; }
         _numeric_override_in_range "$key" "$value" || { log "Config warning: ignored out-of-range override: $key=$value"; continue; }
         printf '%s=%s\n' "$key" "$value" >> "$safe"
@@ -133,6 +137,10 @@ load_user_config() {
         ;;
       WHITELIST_EXTRA_PACKAGES)
         printf '%s' "$value" | grep -Eq '^[A-Za-z0-9._ -]*$' || { log "Config warning: ignored invalid package list"; continue; }
+        printf '%s="%s"\n' "$key" "$value" >> "$safe"
+        ;;
+      ACL_ABNORMAL_DISCONNECT_REASONS)
+        printf '%s' "$value" | grep -Eq '^[0-9 ]*$' || { log "Config warning: ignored invalid ACL reason list"; continue; }
         printf '%s="%s"\n' "$key" "$value" >> "$safe"
         ;;
       *) log "Config warning: ignored unsupported override: $key" ;;
@@ -163,6 +171,73 @@ fresh_log_fault() {
   return 0
 }
 
+
+# --- ACL link-instability evidence -----------------------------------------
+# Pixel Bluetooth HALs rarely crash. The real-world instability symptom is a
+# cluster of abnormal ACL disconnects (link-supervision / LL response timeouts)
+# while the adapter stays ON. These are reported by dumpsys bluetooth_manager as
+# "aclStateChangeCallback: State:Disconnected ... reason:N" lines, which the
+# log-pattern observers never matched. Parsing is kept pure and testable.
+
+# Read dumpsys bluetooth_manager text on stdin and print, oldest-first, each
+# abnormal disconnect as "reason|<full line>". Normal reasons (19 remote-user
+# terminated, 22 local-host terminated, 16) are intentionally excluded.
+acl_abnormal_lines() {
+  awk -v reasons=" ${ACL_ABNORMAL_DISCONNECT_REASONS:-8 11 34 40 61} " '
+    /aclStateChangeCallback/ && /State:Disconnected/ {
+      if (match($0, /reason:[0-9]+/)) {
+        r = substr($0, RSTART + 7, RLENGTH - 7)
+        if (index(reasons, " " r " ") > 0) print r "|" $0
+      }
+    }'
+}
+
+# Count abnormal disconnects that are NEW since the last scan. The dump is a
+# bounded, chronological ring buffer, so we anchor on the previously seen newest
+# line: everything after it is new. First run establishes a baseline (new=0) so
+# startup never injects a storm, and a per-tick cap bounds buffer rollovers.
+acl_new_abnormal_count() {
+  dump="$1"
+  prevfile="$STATE_DIR/acl-last-line"
+  prev=$(cat "$prevfile" 2>/dev/null)
+  lines=$(acl_abnormal_lines < "$dump")
+  [ -n "$lines" ] || { echo 0; return; }
+  newest=$(printf '%s\n' "$lines" | tail -n1)
+  total=$(printf '%s\n' "$lines" | wc -l | tr -d ' ')
+  if [ -z "$prev" ]; then
+    new=0
+  else
+    idx=$(printf '%s\n' "$lines" | grep -nFx "$prev" | head -n1 | cut -d: -f1)
+    if [ -n "$idx" ]; then new=$((total - idx)); else new=$total; fi
+  fi
+  cap="${ACL_INSTABILITY_MAX_NEW_PER_TICK:-10}"
+  [ "$new" -gt "$cap" ] && new=$cap
+  printf '%s\n' "$newest" > "$prevfile" 2>/dev/null
+  echo "$new"
+}
+
+acl_record_new_events() {
+  n="$1"; now=$(date +%s); f="$STATE_DIR/acl-events"
+  i=0; while [ "$i" -lt "$n" ]; do echo "$now" >> "$f" 2>/dev/null; i=$((i + 1)); done
+}
+
+# Prune the rolling event file to the window and return how many remain.
+acl_abnormal_window_count() {
+  now=$(date +%s); win="${ACL_INSTABILITY_WINDOW_SECONDS:-240}"; cutoff=$((now - win))
+  f="$STATE_DIR/acl-events"
+  [ -f "$f" ] || { echo 0; return; }
+  awk -v c="$cutoff" '$1 ~ /^[0-9]+$/ && $1 >= c' "$f" > "$f.tmp" 2>/dev/null && mv "$f.tmp" "$f" 2>/dev/null
+  wc -l < "$f" 2>/dev/null | tr -d ' '
+}
+
+# Health-score contribution. Reads the cached window count written by the
+# observer so scoring stays side-effect free (no second prune/dump per tick).
+acl_instability_penalty() {
+  [ "${ENABLE_ACL_INSTABILITY_GUARD:-1}" = 1 ] || { echo 0; return; }
+  c=$(cat "$STATE_DIR/acl-window-count" 2>/dev/null); case "$c" in ''|*[!0-9]*) c=0 ;; esac
+  [ "$c" -le 0 ] && { echo 0; return; }
+  p=$((c * 7)); [ "$p" -gt 30 ] && p=30; echo "$p"
+}
 
 sdk_int() { getprop ro.build.version.sdk 2>/dev/null; }
 build_id() { getprop ro.build.id 2>/dev/null; }
@@ -221,6 +296,7 @@ bluetooth_health_score() {
   health_bad_state && score=$((score-20))
   penalty=$(recent_bt_stall_score_penalty); score=$((score-penalty))
   active_bluetooth_game >/dev/null 2>&1 && [ "$penalty" -gt 0 ] && score=$((score-10))
+  score=$((score - $(acl_instability_penalty)))
   [ "$score" -lt 0 ] && score=0
   echo "$score"
 }
@@ -228,10 +304,24 @@ export_bluetooth_health_score() {
   [ "${ENABLE_BLUETOOTH_HEALTH_SCORE:-1}" = 1 ] || return 0
   metrics_dir="${CONFIG_DIR:-/sdcard/Bluetooth-Stability-Helper}/metrics"; mkdir -p "$metrics_dir"
   score=$(bluetooth_health_score)
+  stall_pen=$(recent_bt_stall_score_penalty 2>/dev/null); case "$stall_pen" in ''|*[!0-9]*) stall_pen=0 ;; esac
+  acl_pen=$(acl_instability_penalty 2>/dev/null); case "$acl_pen" in ''|*[!0-9]*) acl_pen=0 ;; esac
+  acl_count=$(cat "$STATE_DIR/acl-window-count" 2>/dev/null); case "$acl_count" in ''|*[!0-9]*) acl_count=0 ;; esac
+  [ "$(bt_enabled_setting)" = 1 ] && bt_off_pen=0 || bt_off_pen=35
+  [ "$(bt_process_count)" -gt 0 ] && proc_pen=0 || proc_pen=25
+  health_bad_state && state_pen=20 || state_pen=0
   cat > "$metrics_dir/bluetooth-health.json" <<EOF
 {
   "timestamp": "$(date '+%F %T')",
   "score": $score,
+  "components": {
+    "bluetooth_off": $bt_off_pen,
+    "no_bt_process": $proc_pen,
+    "adapter_bad_state": $state_pen,
+    "recent_stall": $stall_pen,
+    "acl_instability": $acl_pen
+  },
+  "acl_abnormal_window_count": $acl_count,
   "device": "$(getprop ro.product.brand 2>/dev/null) $(getprop ro.product.model 2>/dev/null)",
   "sdk": "$(sdk_int)",
   "android": "$(getprop ro.build.version.release 2>/dev/null)",
@@ -244,8 +334,8 @@ export_bluetooth_health_score() {
   "recovery_state": "$(cat "$STATE_DIR/recovery-state" 2>/dev/null || echo UNKNOWN)",
   "last_fault_type": "$(cat "$STATE_DIR/last-fault-type" 2>/dev/null || echo none)",
   "recoveries_last_hour": "$(count_recent_restarts 2>/dev/null || echo 0)",
-  "recovery_history_count": "$(wc -l < "$metrics_dir/recovery-history.jsonl" 2>/dev/null || echo 0)",
-  "event_history_count": "$(wc -l < "$metrics_dir/events.jsonl" 2>/dev/null || echo 0)"
+  "recovery_history_count": "$(cat "$metrics_dir/recovery-history.jsonl" 2>/dev/null | wc -l | tr -d ' ')",
+  "event_history_count": "$(cat "$metrics_dir/events.jsonl" 2>/dev/null | wc -l | tr -d ' ')"
 }
 EOF
   echo "$score"

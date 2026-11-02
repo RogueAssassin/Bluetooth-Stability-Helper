@@ -2,16 +2,18 @@
 
 The companion is the optional native Android presentation/support layer for Bluetooth Stability Helper. Recovery remains entirely inside the root module.
 
+The UI uses Material 3 with Material You dynamic color (the device accent) on Android 12+, a dark-first Rogue fallback palette, and follows the system light/dark setting.
+
 ## Screens
 
-- **Overview** — root/module/API state, health score, recovery state, Bluetooth state and heartbeat.
+- **Overview** — a health hero card with an animated status ring, a "Why this score" per-signal component breakdown, an ACL link-stability card (abnormal disconnects vs threshold, guard/observe state), plus root/module/API state, Bluetooth state and heartbeat.
 - **Activity** — newest bounded normalized engine events.
 - **Device** — profile, device, Android/build/security-patch (including preview/beta firmware) and supported-app context.
 - **Support** — root provider, module enabled state, manager API schema/source and refresh state.
 
 ## Data access
 
-The app detects the module independently from `/data/adb/modules/btstabilityhelper/module.prop`, then reads the canonical private schema-3 API. It falls back to the shared-storage API mirror when needed. Schema 1 remains accepted for migration compatibility.
+The app detects the module independently from `/data/adb/modules/btstabilityhelper/module.prop`, then reads the canonical private schema-3 API. It falls back to the shared-storage API mirror when needed. Schema 1 remains accepted for migration compatibility. The additive `acl_instability` status block and the `metrics/bluetooth-health.json` component breakdown are read when present and ignored when absent, so the app stays compatible with older engine builds.
 
 Root access is restricted to fixed BSH paths. The app has no arbitrary shell UI and does not make Bluetooth recovery decisions.
 
