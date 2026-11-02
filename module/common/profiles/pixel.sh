@@ -1,9 +1,33 @@
 #!/system/bin/sh
 
+# Per-generation overrides for Pixel devices.
+#
+# IMPORTANT: this is deliberately a no-op by default. The shared Pixel policy
+# below is validated and conservative; we do NOT invent different recovery
+# thresholds per generation without real per-device evidence. Generation and
+# SoC era are detected and reported so diagnostics can be bucketed by hardware,
+# which is the prerequisite for ever tuning a generation on evidence. When a
+# generation has a documented, data-backed reason to differ, add it here as a
+# case and nowhere else; until then every generation keeps the proven policy.
+apply_pixel_generation_overrides() {
+  case "$PIXEL_GENERATION" in
+    6|7) : ;;   # early-tensor (Exynos-modem era): reported; policy unchanged
+    8|9) : ;;   # mid-tensor: reported; policy unchanged
+    1[0-9]) : ;; # current-tensor (incl. confirmed Pixel 10 frankel): unchanged
+    *) : ;;     # unknown generation: safe shared Pixel policy
+  esac
+}
+
 apply_profile_pixel() {
   apply_profile_generic_defaults
   PROFILE_ID="pixel"
-  PROFILE_LABEL="Google Pixel primary"
+  PIXEL_GENERATION=$(pixel_generation)
+  PIXEL_SOC_ERA=$(pixel_soc_era)
+  if [ "$PIXEL_GENERATION" != 0 ]; then
+    PROFILE_LABEL="Google Pixel primary (gen ${PIXEL_GENERATION}, ${PIXEL_SOC_ERA})"
+  else
+    PROFILE_LABEL="Google Pixel primary"
+  fi
   WATCHDOG_INTERVAL=25
   FAILURE_THRESHOLD=2
   FAILURE_WINDOW_SECONDS=180
@@ -27,5 +51,6 @@ apply_profile_pixel() {
     ENABLE_ANDROID16_BOND_LOSS_OBSERVE=1
     log "Pixel Android 16 CP1A guard: build=$(build_id)"
   fi
+  apply_pixel_generation_overrides
   log "Device profile: $PROFILE_LABEL"
 }

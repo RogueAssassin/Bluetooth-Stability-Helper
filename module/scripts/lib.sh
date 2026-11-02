@@ -270,6 +270,41 @@ is_android_preview_build() {
 brand_lc() { getprop ro.product.brand 2>/dev/null | tr '[:upper:]' '[:lower:]'; }
 manufacturer_lc() { getprop ro.product.manufacturer 2>/dev/null | tr '[:upper:]' '[:lower:]'; }
 is_pixel_device() { [ "$(brand_lc)" = "google" ] || echo "$(getprop ro.product.model 2>/dev/null)" | grep -qi '^pixel'; }
+
+# Pixel hardware generation, parsed from the model name (e.g. "Pixel 10",
+# "Pixel 9 Pro XL", "Pixel 6a" -> 10/9/6). The model string is reliable and
+# human-readable, so it is the primary source; a codename fallback covers the
+# confirmed current device. Returns 0 when it cannot be determined.
+pixel_generation() {
+  is_pixel_device || { echo 0; return; }
+  model=$(getprop ro.product.model 2>/dev/null)
+  gen=""
+  case "$model" in
+    [Pp]ixel\ [0-9]*) rest=${model#* }; gen=${rest%%[!0-9]*} ;;
+  esac
+  if [ -z "$gen" ]; then
+    case "$(getprop ro.product.device 2>/dev/null)" in
+      frankel) gen=10 ;;   # confirmed via device: Pixel 10 (frankel)
+      *) gen=0 ;;
+    esac
+  fi
+  echo "${gen:-0}"
+}
+
+# Coarse, defensible SoC-era grouping. Pixel 6/7 use the first Tensor designs
+# (Exynos-modem era, historically more connectivity quirks); 8/9 are the
+# refined middle generations; 10+ are the current designs. Used only for
+# diagnostics/bucketing — it does not change recovery policy on its own.
+pixel_soc_era() {
+  gen=$(pixel_generation)
+  case "$gen" in
+    6|7) echo "early-tensor" ;;
+    8|9) echo "mid-tensor" ;;
+    1[0-9]) echo "current-tensor" ;;
+    *) echo "unknown" ;;
+  esac
+}
+
 device_profile_id() {
   brand=$(brand_lc); maker=$(manufacturer_lc); model=$(getprop ro.product.model 2>/dev/null | tr '[:upper:]' '[:lower:]')
   all="$brand $maker $model"

@@ -491,6 +491,7 @@ Bluetooth Stability Helper v$(module_version)
 Profile: ${PROFILE_LABEL:-$(device_profile_id)}
 Build ID: $(build_id)
 Device: $brand $model SDK=$sdk
+Pixel generation: $(pixel_generation) ($(pixel_soc_era))
 Bluetooth enabled setting: $(bt_enabled_setting)
 BT process count: $(bt_process_count)
 Strict process check: ${ENABLE_STRICT_BT_PROCESS_CHECK:-0}

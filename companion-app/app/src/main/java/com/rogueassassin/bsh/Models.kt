@@ -36,6 +36,7 @@ data class BshStatus(
     val model:String, val device:String, val buildId:String, val buildFingerprint:String,
     val securityPatch:String, val activePokemonGo:String, val activePokemod:String,
     val settings:BshSettings, val androidCodename:String = "unknown", val previewBuild:String = "unknown",
+    val pixelGeneration:String = "0", val pixelSocEra:String = "unknown",
     val acl:BshAcl? = null
 ) {
  companion object {
@@ -55,6 +56,7 @@ data class BshStatus(
      s.optString("adapter_toggle_recovery","unknown"),s.optString("interaction_freeze_guard","unknown"),s.optString("stale_session_minutes","unknown"),
      s.optString("ble_scan_always_enabled","unknown"),s.optString("location_mode","unknown")),
     j.optString("android_codename","unknown"),j.optString("android_preview_build","unknown"),
+    j.optString("pixel_generation","0"),j.optString("pixel_soc_era","unknown"),
     BshAcl.parse(j.optJSONObject("acl_instability"))
    )
   }

@@ -317,6 +317,9 @@ private fun Device(snapshot: CompanionSnapshot) {
         item { InfoCard("Manufacturer", s?.manufacturer ?: "Waiting for API") }
         item { InfoCard("Brand / model", s?.let { it.brand + " / " + it.model } ?: "Waiting for API") }
         item { InfoCard("Device", s?.device ?: "Waiting for API") }
+        if (s != null && s.pixelGeneration != "0") {
+            item { InfoCard("Pixel generation", "Gen " + s.pixelGeneration + " • " + s.pixelSocEra.replace('-', ' ')) }
+        }
         item { InfoCard("Android", if (s != null) s.androidRelease + " / SDK " + s.androidSdk else "Waiting for API") }
         item { InfoCard("Build", s?.let { if (it.previewBuild == "yes") it.buildId + " • preview/beta" else it.buildId } ?: "Waiting for API") }
         item { InfoCard("Security patch", s?.securityPatch ?: "Waiting for API") }
