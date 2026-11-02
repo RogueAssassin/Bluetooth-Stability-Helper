@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.10.0
+- Added an ACL link-instability observer: it counts abnormal ACL disconnects (`reason:8` connection/supervision timeout, `reason:34` LL response timeout, and the configurable `11`/`40`/`61`) reported by `dumpsys bluetooth_manager` while the adapter stays ON. Benign reasons such as `19` (remote user terminated) and `22` (local host terminated) are never counted.
+- New disconnects are detected by anchoring on the previously seen newest line, so the bounded dump ring buffer cannot be double-counted; the first scan only establishes a baseline and a per-tick cap bounds buffer rollovers. This targets the common Pixel symptom where the HAL never crashes but the link keeps flapping, which the existing log-pattern observers did not catch.
+- The observer is observe-only by default (`ACL_INSTABILITY_RECOVERY_ENABLED=0`): it records a fault event and a health-score penalty but does not toggle the adapter unless explicitly opted in, consistent with not fighting the platform's own recovery.
+- Added a weighted health score with a `components` breakdown and `acl_abnormal_window_count` in `metrics/bluetooth-health.json`, so diagnostics and the companion app can show why a device is degraded.
+- Added additive `acl_instability` status fields and `acl_instability`/`health_components` capability flags to the manager API. The schema number remains 3 and existing managers (which accept schema 1–3) keep working.
+- Added safe, range-validated user overrides: `ENABLE_ACL_INSTABILITY_GUARD`, `ACL_INSTABILITY_WINDOW_SECONDS`, `ACL_INSTABILITY_THRESHOLD`, `ACL_INSTABILITY_MAX_NEW_PER_TICK`, `ACL_INSTABILITY_RECOVERY_ENABLED`, `ACL_ABNORMAL_DISCONNECT_REASONS` and `WATCHDOG_JITTER_SECONDS`.
+- Added watchdog sleep jitter (`WATCHDOG_JITTER_SECONDS`, default 5) so repeated wakeups do not synchronise with other periodic work.
+- Hardened metric-count reads in the health export against a missing history file.
+- Expanded the test suite with ACL parsing, delta/window/penalty and additive manager-API contract checks.
+- Companion app redesigned on Material 3 with Material You dynamic color (device accent) on Android 12+, a dark-first Rogue fallback palette and system light/dark support.
+- Overview now leads with a health hero card and an animated status ring, a "Why this score" per-signal component breakdown (read from `metrics/bluetooth-health.json`), and an ACL link-stability card showing abnormal disconnects against the threshold with guard/observe state.
+- Companion app parses the additive `acl_instability` status fields and health-component breakdown, ignoring them when absent so it stays compatible with older engine builds.
+- Companion version bumped to 1.10.0 (versionCode 2000).
+
 ## v1.9.0
 - Recognised the current Pixel Android 17 firmware families: the October 2026 `CP3A.261005` line (Pixel 6 through Pixel 10a) and the Pixel 11 series `CD1A` line.
 - Added preview/beta firmware detection (non-REL codename or Android 17 QPR3 beta `DP11` builds). It is reported in the status file, manager API and companion app without changing recovery policy.

@@ -6,6 +6,7 @@ object BshRepository {
     private const val PRIVATE_STATUS = "/data/adb/modules/btstabilityhelper/runtime/api/status.json"
     private const val EXTERNAL_STATUS = "/sdcard/Bluetooth-Stability-Helper/api/status.json"
     private const val EVENTS = "/sdcard/Bluetooth-Stability-Helper/metrics/events.jsonl"
+    private const val HEALTH = "/sdcard/Bluetooth-Stability-Helper/metrics/bluetooth-health.json"
 
     fun load(): CompanionSnapshot {
         if (!RootBridge.rootAvailable()) {
@@ -57,7 +58,9 @@ object BshRepository {
             else -> null
         }
 
-        return CompanionSnapshot(true, RootBridge.rootProvider(), module, status, source, events, error)
+        val health = RootBridge.read(HEALTH).getOrNull()?.let { BshHealth.parse(it) }
+
+        return CompanionSnapshot(true, RootBridge.rootProvider(), module, status, source, events, error, health)
     }
 
     private fun property(raw: String, key: String): String? =

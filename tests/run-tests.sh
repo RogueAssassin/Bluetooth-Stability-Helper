@@ -195,6 +195,11 @@ for path in sys.argv[1:]:
 PY
 grep -q '"schema": 3' "$API_STATUS_FILE"
 grep -q '"schema": 3' "$API_CAPABILITIES_FILE"
+# ACL instability fields are additive; the schema number stays 3 so existing
+# managers (which accept schema 1..3) keep working.
+grep -q '"acl_instability": true' "$API_CAPABILITIES_FILE"
+grep -q '"acl_instability": {' "$API_STATUS_FILE"
+grep -q '"abnormal_window_count":' "$API_STATUS_FILE"
 grep -q '"service_state":' "$API_STATUS_FILE"
 grep -q '"settings": {' "$API_STATUS_FILE"
 grep -q '"service_state": "READY"' "$API_STATUS_FILE"
@@ -209,6 +214,41 @@ grep -Fq 'REDACTED-MAC' "$MODDIR/scripts/diagnostics.sh"
 grep -q '"read_only": true' "$API_CAPABILITIES_FILE"
 grep -q '"remote_commands": false' "$API_CAPABILITIES_FILE"
 grep -q '"WATCHDOG_INTERVAL"' "$API_CONFIG_SCHEMA_FILE"
+grep -q '"ACL_INSTABILITY_THRESHOLD"' "$API_CONFIG_SCHEMA_FILE"
+
+# --- ACL link-instability evidence ------------------------------------------
+reset_test_paths
+acl_dump="$tmp/acl-dump.txt"
+cat > "$acl_dump" <<'ACL'
+  11-02 08:32:23.708 [XX:XX:XX:XX:D0:C0] aclStateChangeCallback: State:Disconnected, transport:BR/EDR, Address type:Public, reason:8, Adapter state:ON
+  11-02 08:32:41.203 [XX:XX:XX:XX:D0:C0] aclStateChangeCallback: State:Disconnected, transport:BR/EDR, Address type:Public, reason:11, Adapter state:ON
+  11-02 08:33:35.895 [XX:XX:XX:XX:D0:C0] aclStateChangeCallback: State:Disconnected, transport:BR/EDR, Address type:Public, reason:34, Adapter state:ON
+  11-02 12:22:42.634 [XX:XX:XX:XX:7A:1C] aclStateChangeCallback: State:Disconnected, transport:BR/EDR, Address type:Public, reason:19, Adapter state:ON
+ACL
+# Three abnormal disconnects (8, 11, 34); the normal reason:19 is excluded.
+[ "$(acl_abnormal_lines < "$acl_dump" | wc -l | tr -d ' ')" = 3 ]
+# First scan is a baseline only, so startup never injects a storm.
+rm -f "$STATE_DIR/acl-last-line" "$STATE_DIR/acl-events" "$STATE_DIR/acl-window-count"
+[ "$(acl_new_abnormal_count "$acl_dump")" = 0 ]
+# A newly appended abnormal disconnect counts as exactly one new event.
+printf '%s\n' '  11-02 15:13:25.687 [XX:XX:XX:XX:D0:C0] aclStateChangeCallback: State:Disconnected, transport:BR/EDR, Address type:Public, reason:8, Adapter state:ON' >> "$acl_dump"
+[ "$(acl_new_abnormal_count "$acl_dump")" = 1 ]
+# Windowed count feeds a capped health penalty.
+acl_record_new_events 4
+[ "$(acl_abnormal_window_count)" -ge 4 ]
+acl_abnormal_window_count > "$STATE_DIR/acl-window-count"
+[ "$(acl_instability_penalty)" -gt 0 ]
+# A dump of only normal disconnects registers nothing.
+printf '%s\n' '  11-02 17:01:43.577 [XX:XX:XX:XX:7A:1C] aclStateChangeCallback: State:Disconnected, transport:BR/EDR, Address type:Public, reason:19, Adapter state:ON' > "$acl_dump"
+[ "$(acl_abnormal_lines < "$acl_dump" | wc -l | tr -d ' ')" = 0 ]
+# Health export carries the component breakdown.
+export_bluetooth_health_score > /dev/null
+python3 - "$CONFIG_DIR/metrics/bluetooth-health.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1], encoding="utf-8"))
+assert "components" in d and "acl_instability" in d["components"], d
+assert "acl_abnormal_window_count" in d, d
+PY
 
 # Exercise the modern top-level installer with a temporary Pixel payload.
 install_root="$tmp/install-module"

@@ -113,8 +113,19 @@ Observers look for current concrete signals rather than app names or session age
 - adapter/manager state inconsistencies
 - confirmed location/fused-provider stalls
 - Android 16/17 Companion Device and bond-change observations
+- abnormal ACL disconnect clustering (link-supervision / LL response timeouts) while the adapter stays ON
 
 Duplicate or stale log events are rejected so one old log line cannot repeatedly advance recovery.
+
+### ACL link-instability observer
+
+Pixel Bluetooth HALs rarely crash, so the HAL/binder-death signals above often stay silent even when a session is clearly flapping. The real symptom is a cluster of *abnormal* ACL disconnects — `aclStateChangeCallback: State:Disconnected ... reason:N` lines reported by `dumpsys bluetooth_manager` while the adapter remains ON. Only abnormal reason codes are counted (`8` connection/supervision timeout, `34` LL response timeout, and the configurable `11`, `40`, `61`); benign reasons such as `19` (remote user terminated) and `22` (local host terminated) are ignored.
+
+New disconnects are counted by anchoring on the previously seen newest line, so the bounded ring buffer in the dump cannot be double-counted, the first scan only establishes a baseline, and a per-tick cap bounds buffer rollovers. A rolling count within a window feeds both a health-score penalty and a fault event. The observer is **observe-only by default**: it records evidence and scores it but does not toggle the adapter unless `ACL_INSTABILITY_RECOVERY_ENABLED=1`, consistent with the module's policy of not fighting the platform's own recovery.
+
+### Health score components
+
+`metrics/bluetooth-health.json` records the overall `score` plus a `components` breakdown (`bluetooth_off`, `no_bt_process`, `adapter_bad_state`, `recent_stall`, `acl_instability`) and the current `acl_abnormal_window_count`, so the companion app and diagnostics can show *why* a device is considered degraded rather than only the final number.
 
 ## Recovery safeguards
 

@@ -106,6 +106,15 @@ cap_runtime_files() {
   }
 }
 wait_until_boot_complete() { until [ "$(getprop sys.boot_completed)" = "1" ]; do sleep 5; done; sleep 25; }
+watchdog_sleep() {
+  base="${WATCHDOG_INTERVAL:-25}"; case "$base" in ''|*[!0-9]*) base=25 ;; esac
+  jmax="${WATCHDOG_JITTER_SECONDS:-5}"; case "$jmax" in ''|*[!0-9]*) jmax=0 ;; esac
+  jitter=0
+  if [ "$jmax" -gt 0 ]; then
+    if [ -n "${RANDOM:-}" ]; then jitter=$((RANDOM % (jmax + 1))); else jitter=$(($(date +%s) % (jmax + 1))); fi
+  fi
+  sleep $((base + jitter))
+}
 ensure_files() {
   mkdir -p "$STATE_DIR" "$EXPORT_DIR" "$CONFIG_DIR/logs" "$CONFIG_DIR/import" "$CONFIG_DIR/metrics"
   [ -f "$MODDIR/state/install-report.txt" ] && cp "$MODDIR/state/install-report.txt" "$CONFIG_DIR/install-report.txt" 2>/dev/null
@@ -304,6 +313,28 @@ scan_stall_patterns() {
   return 0
 }
 
+acl_instability_patterns() {
+  [ "${ENABLE_ACL_INSTABILITY_GUARD:-1}" = 1 ] || return 1
+  [ "$(bt_enabled_setting)" = 1 ] || return 1
+  dump_tmp="$STATE_DIR/acl-dump.tmp"
+  dumpsys bluetooth_manager 2>/dev/null > "$dump_tmp" || { rm -f "$dump_tmp" 2>/dev/null; return 1; }
+  new=$(acl_new_abnormal_count "$dump_tmp")
+  rm -f "$dump_tmp" 2>/dev/null
+  case "$new" in ''|*[!0-9]*) new=0 ;; esac
+  [ "$new" -gt 0 ] && acl_record_new_events "$new"
+  count=$(acl_abnormal_window_count); case "$count" in ''|*[!0-9]*) count=0 ;; esac
+  echo "$count" > "$STATE_DIR/acl-window-count" 2>/dev/null
+  [ "$count" -ge "${ACL_INSTABILITY_THRESHOLD:-4}" ] || return 1
+  log "ACL link instability: $count abnormal disconnects within ${ACL_INSTABILITY_WINDOW_SECONDS:-240}s"
+  echo "acl_link_instability" > "$STATE_DIR/last-fault-type"
+  record_event "fault" "warning" "acl-observer" "Abnormal ACL disconnect cluster: $count within ${ACL_INSTABILITY_WINDOW_SECONDS:-240}s" "observe" ""
+  pixel_connectivity_snapshot
+  # Observe-only unless explicitly opted in: the cluster is recorded and scored,
+  # but the adapter is not toggled by default.
+  [ "${ACL_INSTABILITY_RECOVERY_ENABLED:-0}" = 1 ] || return 1
+  return 0
+}
+
 track_vpgp3_session() {
   [ "$ENABLE_STALE_SESSION_WATCHDOG" = 1 ] || return 1
   go=$(active_pokemon_go); pm=$(active_pokemod); game=$(active_bluetooth_game)
@@ -472,6 +503,7 @@ Preview/beta firmware: $(is_android_preview_build && echo yes || echo no)
 Active Pokémon GO: ${go:-none}
 Active Pokemod/$VPGP3_DISPLAY_NAME: ${pm:-none}
 Bluetooth health score: $(bluetooth_health_score 2>/dev/null)
+ACL instability guard: ${ENABLE_ACL_INSTABILITY_GUARD:-1} (recovery ${ACL_INSTABILITY_RECOVERY_ENABLED:-0}); abnormal disconnects in ${ACL_INSTABILITY_WINDOW_SECONDS:-240}s: $(cat "$STATE_DIR/acl-window-count" 2>/dev/null || echo 0)
 Recovery state: $(recovery_state)
 Last fault type: $(cat "$STATE_DIR/last-fault-type" 2>/dev/null || echo none)
 Last recovery outcome: $(last_recovery_outcome)
@@ -513,6 +545,10 @@ main_loop() {
       android17_connectivity_change_patterns
       interaction_freeze_patterns && bad=1
       scan_stall_patterns && bad=1
+      # ACL link-instability clustering (observe-only unless opted in). Always
+      # updates the windowed count + health penalty; only sets bad=1 when
+      # ACL_INSTABILITY_RECOVERY_ENABLED=1 and the cluster crosses threshold.
+      acl_instability_patterns && bad=1
       track_vpgp3_session
       if pokemon_stack_health_bad; then [ "$POKEMOD_WARN_ONLY" = 1 ] && log "Pokemod/$VPGP3_DISPLAY_NAME signal warn-only; not triggering BT recovery" || bad=1; fi
       now=$(date +%s); last_signal=$(cat "$LAST_FAILURE_SIGNAL_FILE" 2>/dev/null)
@@ -537,7 +573,7 @@ main_loop() {
     fi
     write_status
     [ "${MANAGER_API_ENABLED:-1}" = 1 ] && manager_api_refresh
-    sleep "$WATCHDOG_INTERVAL"
+    watchdog_sleep
   done
 }
 

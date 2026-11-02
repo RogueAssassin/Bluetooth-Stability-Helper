@@ -19,8 +19,8 @@ android {
         applicationId = "com.rogueassassin.bsh"
         minSdk = 31
         targetSdk = 37
-        versionCode = 1900
-        versionName = "1.9.0"
+        versionCode = 2000
+        versionName = "1.10.0"
     }
 
     signingConfigs {

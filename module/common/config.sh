@@ -89,6 +89,25 @@ ENABLE_ADAPTER_TOGGLE_RECOVERY=1
 ENABLE_BLUETOOTH_APP_FORCE_STOP=0
 ENABLE_A2DP_OFFLOAD_DISABLE=0
 
+# ACL link-instability observer. Pixel BT HALs rarely crash; the real symptom is
+# a cluster of abnormal ACL disconnects (link-supervision / LL response timeouts)
+# reported by dumpsys bluetooth_manager while the adapter stays ON. Abnormal
+# reason codes only: 8 (connection/supervision timeout), 11, 34 (LL response
+# timeout), 40, 61. Normal reasons (19 remote-terminated, 22 local-terminated)
+# are never counted. Observe-only by default: it contributes fault events and a
+# health-score penalty but does not toggle the adapter unless explicitly opted
+# in, consistent with the module's "observe, don't fight the platform" design.
+ENABLE_ACL_INSTABILITY_GUARD=1
+ACL_ABNORMAL_DISCONNECT_REASONS="8 11 34 40 61"
+ACL_INSTABILITY_WINDOW_SECONDS=240
+ACL_INSTABILITY_THRESHOLD=4
+ACL_INSTABILITY_MAX_NEW_PER_TICK=10
+ACL_INSTABILITY_RECOVERY_ENABLED=0
+
+# Watchdog jitter: add 0..N seconds to each sleep so repeated wakeups do not
+# synchronise with other periodic work. 0 disables jitter.
+WATCHDOG_JITTER_SECONDS=5
+
 # Pixel remains the primary profile. Other OEM profiles use conservative
 # recovery settings and do not change vendor properties by default.
 
