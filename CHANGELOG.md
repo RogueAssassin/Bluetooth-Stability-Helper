@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.11.1
+- Build/CI only: extracted the duplicated companion-app signing sequence (toolchain setup, keystore restore, signed build, certificate SHA-256 verification) into a shared `.github/actions/build-signed-companion` composite action used by the companion-app, package and release workflows. No module or app behavior change.
+
 ## v1.11.0
 - Added Pixel hardware generation detection, parsed from the model name (e.g. `Pixel 10`, `Pixel 9 Pro XL`, `Pixel 6a` → 10/9/6) with a confirmed `frankel` = Pixel 10 codename fallback, plus a coarse SoC-era grouping (early/mid/current-tensor).
 - Report `pixel_generation` and `pixel_soc_era` in `status.txt`, the manager API (additive fields; schema remains 3) and the companion Device view.
