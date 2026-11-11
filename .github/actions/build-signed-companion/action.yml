@@ -1,0 +1,97 @@
+name: Build signed companion APK
+description: >-
+  Set up the Android/Gradle toolchain, restore the persistent BSH signing
+  keystore, build the signed companion release APK, and verify its certificate
+  SHA-256 against the expected persistent BSH identity. Shared by the
+  companion-app, package and release workflows so the signing logic lives in
+  one place.
+
+inputs:
+  keystore-base64:
+    description: Base64-encoded release keystore (secrets.BSH_SIGNING_KEYSTORE_BASE64).
+    required: true
+  store-password:
+    description: Keystore store password (secrets.BSH_SIGNING_STORE_PASSWORD).
+    required: true
+  key-alias:
+    description: Signing key alias (secrets.BSH_SIGNING_KEY_ALIAS).
+    required: true
+  key-password:
+    description: Signing key password (secrets.BSH_SIGNING_KEY_PASSWORD).
+    required: true
+  cert-sha256:
+    description: Expected signing certificate SHA-256 (secrets.BSH_SIGNING_CERT_SHA256).
+    required: true
+  java-version:
+    description: Temurin JDK version.
+    default: '21'
+  gradle-version:
+    description: Gradle version to provision.
+    default: '9.8.1'
+  android-platform:
+    description: Android platform package to install via sdkmanager.
+    default: platforms;android-37.0
+
+outputs:
+  sha256:
+    description: The verified signing certificate SHA-256.
+    value: ${{ steps.signing.outputs.sha256 }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@v6
+      with:
+        distribution: temurin
+        java-version: ${{ inputs.java-version }}
+
+    - uses: android-actions/setup-android@v4
+
+    - name: Install Android platform
+      shell: bash
+      run: sdkmanager "${{ inputs.android-platform }}"
+
+    - uses: gradle/actions/setup-gradle@v6
+      with:
+        gradle-version: ${{ inputs.gradle-version }}
+        cache-provider: basic
+
+    - name: Restore persistent BSH signing keystore
+      shell: bash
+      env:
+        BSH_SIGNING_KEYSTORE_BASE64: ${{ inputs.keystore-base64 }}
+      run: |
+        set -euo pipefail
+        test -n "$BSH_SIGNING_KEYSTORE_BASE64" || { echo "Missing BSH_SIGNING_KEYSTORE_BASE64 repository secret"; exit 1; }
+        printf '%s' "$BSH_SIGNING_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/bsh-release.jks"
+        test -s "$RUNNER_TEMP/bsh-release.jks"
+
+    - name: Build signed companion APK
+      shell: bash
+      working-directory: companion-app
+      env:
+        BSH_SIGNING_STORE_FILE: ${{ runner.temp }}/bsh-release.jks
+        BSH_SIGNING_STORE_PASSWORD: ${{ inputs.store-password }}
+        BSH_SIGNING_KEY_ALIAS: ${{ inputs.key-alias }}
+        BSH_SIGNING_KEY_PASSWORD: ${{ inputs.key-password }}
+      run: |
+        gradle :app:verifyBshSigningConfigured :app:assembleRelease --stacktrace
+        test -s app/build/outputs/apk/release/app-release.apk
+
+    - name: Verify APK signing certificate
+      id: signing
+      shell: bash
+      env:
+        BSH_SIGNING_CERT_SHA256: ${{ inputs.cert-sha256 }}
+      run: |
+        set -euo pipefail
+        test -n "$BSH_SIGNING_CERT_SHA256" || { echo "Missing BSH_SIGNING_CERT_SHA256 repository secret"; exit 1; }
+        APKSIGNER=$(find "$ANDROID_SDK_ROOT/build-tools" -type f -name apksigner | sort -V | tail -n1)
+        test -n "$APKSIGNER" || { echo "Android apksigner not found under $ANDROID_SDK_ROOT/build-tools"; exit 1; }
+        CERTS=$("$APKSIGNER" verify --print-certs companion-app/app/build/outputs/apk/release/app-release.apk 2>&1)
+        ACTUAL=$(printf '%s\n' "$CERTS" | grep -i -m1 'certificate SHA-256 digest' | sed 's/.*digest:[[:space:]]*//' | tr '[:lower:]' '[:upper:]')
+        EXPECTED=$(printf '%s' "$BSH_SIGNING_CERT_SHA256" | sed -E 's/^[[:space:]]*SHA-?256[=:[:space:]]*//I' | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')
+        ACTUAL_NORM=$(printf '%s' "$ACTUAL" | tr -d ':[:space:]')
+        test "$ACTUAL_NORM" = "$EXPECTED" || { echo "Signing certificate mismatch"; echo "Expected: $EXPECTED"; echo "Actual: $ACTUAL_NORM"; exit 1; }
+        echo "sha256=$ACTUAL_NORM" >> "$GITHUB_OUTPUT"
+        echo "Verified persistent BSH certificate: $ACTUAL_NORM"
