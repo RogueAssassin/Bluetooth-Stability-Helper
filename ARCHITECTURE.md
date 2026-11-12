@@ -145,7 +145,6 @@ App force-stop is disabled by default. Unsupported Android versions and selected
 ```text
 /sdcard/Bluetooth-Stability-Helper/
 ├── logs/       # bounded event logs
-├── state/      # heartbeat, fault and recovery state
 ├── metrics/    # health, event and recovery history
 ├── export/     # bounded diagnostics/support exports
 ├── api/        # read-only manager JSON contract
@@ -159,7 +158,7 @@ Recovery/event history survives reboot but remains capped. Temporary log signatu
 
 ## Security boundary
 
-Shared storage is never sourced as arbitrary root shell. Only documented scalar configuration values are accepted and range-validated.
+Shared storage is never sourced as arbitrary root shell. Only documented scalar configuration values are accepted and range-validated, and the validated copy the service sources lives with the rest of the runtime state (heartbeat, fault counters, recovery history inputs) in the root-only `/data/adb/bsh-state/` directory. Nothing under `/sdcard` is trusted as a decision input.
 
 The module does not add Zygisk, Xposed, ART hooks, remote command execution, Play Integrity spoofing or application injection.
 

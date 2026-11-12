@@ -9,12 +9,16 @@ on:
     paths:
       - 'companion-app/**'
       - '.github/workflows/companion-app.yml'
+      - '.github/actions/**'
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Build & verify signed companion APK
         id: signing
         uses: ./.github/actions/build-signed-companion
@@ -30,11 +34,11 @@ jobs:
         run: |
           cp companion-app/app/build/outputs/apk/release/app-release.apk module/companion.apk
           test -s module/companion.apk
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: bsh-companion-signed
           path: companion-app/app/build/outputs/apk/release/app-release.apk
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: bsh-module-companion-payload
           path: module/companion.apk

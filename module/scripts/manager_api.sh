@@ -13,7 +13,7 @@ API_SCHEMA_VERSION=3
 API_STATUS_FILE="$API_DIR/status.json"
 API_CAPABILITIES_FILE="$API_DIR/capabilities.json"
 API_CONFIG_SCHEMA_FILE="$API_DIR/config-schema.json"
-API_LAST_REFRESH_FILE="${STATE_DIR:-/sdcard/Bluetooth-Stability-Helper/state}/manager-api-last-refresh"
+API_LAST_REFRESH_FILE="${STATE_DIR:-/data/adb/bsh-state}/manager-api-last-refresh"
 
 manager_api_json_escape() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
@@ -96,7 +96,7 @@ EOF
 }
 
 manager_api_heartbeat_age() {
-  heartbeat=$(cat "${STATE_DIR:-/sdcard/Bluetooth-Stability-Helper/state}/service-heartbeat" 2>/dev/null)
+  heartbeat=$(cat "${STATE_DIR:-/data/adb/bsh-state}/service-heartbeat" 2>/dev/null)
   now=$(date +%s)
   case "$heartbeat" in ''|*[!0-9]*) echo -1 ;; *) echo $((now-heartbeat)) ;; esac
 }
@@ -113,15 +113,15 @@ manager_api_write_status() {
   metrics_dir="${CONFIG_DIR:-/sdcard/Bluetooth-Stability-Helper}/metrics"
   api_status_tmp="$API_STATUS_FILE.tmp"
   score=$(bluetooth_health_score 2>/dev/null); case "$score" in ''|*[!0-9]*) score=0 ;; esac
-  acl_count=$(cat "${STATE_DIR:-/sdcard/Bluetooth-Stability-Helper/state}/acl-window-count" 2>/dev/null); case "$acl_count" in ''|*[!0-9]*) acl_count=0 ;; esac
+  acl_count=$(cat "${STATE_DIR:-/data/adb/bsh-state}/acl-window-count" 2>/dev/null); case "$acl_count" in ''|*[!0-9]*) acl_count=0 ;; esac
   acl_pen=$(acl_instability_penalty 2>/dev/null); case "$acl_pen" in ''|*[!0-9]*) acl_pen=0 ;; esac
   profile="${PROFILE_ID:-$(device_profile_id 2>/dev/null)}"; [ -n "$profile" ] || profile=unknown
   state=$(recovery_state 2>/dev/null); [ -n "$state" ] || state=UNKNOWN
-  fault=$(cat "${STATE_DIR:-/sdcard/Bluetooth-Stability-Helper/state}/last-fault-type" 2>/dev/null); [ -n "$fault" ] || fault=none
+  fault=$(cat "${STATE_DIR:-/data/adb/bsh-state}/last-fault-type" 2>/dev/null); [ -n "$fault" ] || fault=none
   outcome=$(last_recovery_outcome 2>/dev/null); [ -n "$outcome" ] || outcome=none
   go=$(active_pokemon_go 2>/dev/null || true); [ -n "$go" ] || go=none
   pm=$(active_pokemod 2>/dev/null || true); [ -n "$pm" ] || pm=none
-  service_start=$(cat "${STATE_DIR:-/sdcard/Bluetooth-Stability-Helper/state}/service-start-time" 2>/dev/null); case "$service_start" in ''|*[!0-9]*) service_start=0 ;; esac
+  service_start=$(cat "${STATE_DIR:-/data/adb/bsh-state}/service-start-time" 2>/dev/null); case "$service_start" in ''|*[!0-9]*) service_start=0 ;; esac
   now_epoch=$(date +%s); service_uptime=0; [ "$service_start" -gt 0 ] && service_uptime=$((now_epoch-service_start))
   root_provider="Root"; command -v magisk >/dev/null 2>&1 && root_provider="Magisk"; command -v ksud >/dev/null 2>&1 && root_provider="KernelSU"; command -v apd >/dev/null 2>&1 && root_provider="APatch"
   zygisk="unknown"; command -v magisk >/dev/null 2>&1 && zygisk=$(magisk --zygisk 2>/dev/null || echo unknown)

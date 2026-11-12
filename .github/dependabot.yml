@@ -3,7 +3,9 @@ updates:
   # Keep workflow actions current so runtime deprecations (e.g. Node.js 20)
   # arrive as PRs instead of CI warnings.
   - package-ecosystem: github-actions
-    directory: /
+    directories:
+      - /
+      - /.github/actions/build-signed-companion
     schedule:
       interval: weekly
     groups:

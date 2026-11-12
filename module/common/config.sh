@@ -156,6 +156,8 @@ CONFIG_DIR="/sdcard/Bluetooth-Stability-Helper"
 IMPORT_DIR="$CONFIG_DIR/import"
 EXPORT_DIR="$CONFIG_DIR/export"
 LOG_DIR="$CONFIG_DIR/logs"
-STATE_DIR="$CONFIG_DIR/state"
+# Runtime state is root-only: it feeds recovery decisions and holds the validated
+# config copy the service sources, so it must not live on app-writable storage.
+STATE_DIR="/data/adb/bsh-state"
 LOCAL_USER_CONFIG="$CONFIG_DIR/user-config.sh"
 LOCAL_STATUS_FILE="$CONFIG_DIR/status.txt"

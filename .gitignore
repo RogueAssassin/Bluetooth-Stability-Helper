@@ -10,3 +10,6 @@
 *.p12
 *.pfx
 signing.properties
+
+# graphify knowledge-graph output
+graphify-out/

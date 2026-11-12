@@ -1,7 +1,7 @@
 #!/system/bin/sh
 MODDIR=${MODDIR:-${0%/*}/..}
 LOG="${LOG:-/sdcard/Bluetooth-Stability-Helper/logs/bt-stability.log}"
-STATE_DIR="${STATE_DIR:-/sdcard/Bluetooth-Stability-Helper/state}"
+STATE_DIR="${STATE_DIR:-/data/adb/bsh-state}"
 mkdir -p "$STATE_DIR"
 
 _log_should_keep() {

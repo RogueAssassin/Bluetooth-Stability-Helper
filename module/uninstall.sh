@@ -32,3 +32,6 @@ if [ -f "$whitelist" ]; then
     [ -n "$pkg" ] && cmd deviceidle whitelist -"$pkg" >/dev/null 2>&1
   done
 fi
+
+# Runtime state is private to the module; diagnostics under /sdcard are left in place.
+rm -rf /data/adb/bsh-state /data/adb/bsh-service.lock 2>/dev/null
