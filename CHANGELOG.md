@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.11.3
+- Build/CI only; no module or app behavior change.
+- The release workflow now publishes only from `main`: a manual run on any other branch is skipped instead of tagging and releasing.
+- `version` and `versionCode` from `module.prop` are validated and passed to later CI steps through the environment instead of being interpolated into shell scripts; the built zip's version lines are matched as exact fixed strings.
+- Release runs are queued one at a time and never cancelled part-way through tagging.
+- Docs: `ARCHITECTURE.md` labels the root-only state directory in the data-flow diagram.
+
 ## v1.11.2
 - Security: moved runtime state from `/sdcard/Bluetooth-Stability-Helper/state/` to the root-only `/data/adb/bsh-state/`. The validated config copy that the root service sources was previously written to shared storage, where an app with broad storage access could have replaced it between validation and sourcing. Fault counters, cooldown and restart history are no longer app-writable either.
 - The legacy shared-storage `state/` directory is removed at service start; counters reset once after updating. Logs, metrics, exports, the API mirror and `user-config.sh` stay under `/sdcard`.
