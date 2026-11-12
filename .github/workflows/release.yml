@@ -17,11 +17,18 @@ on:
 permissions:
   contents: read
 
+# Releases run one at a time and are never cancelled part-way through tagging.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   # A push that does not change the module version (docs, CI, tests) must not
   # fail the pipeline or republish: release only when the version tag is new
   # or already points at this commit.
   gate:
+    # A manual run from any other branch must never tag or publish.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     outputs:
       release_needed: ${{ steps.check.outputs.release_needed }}
@@ -61,6 +68,15 @@ jobs:
         run: |
           VERSION=$(grep '^version=' module/module.prop | cut -d= -f2)
           VERSION_CODE=$(grep '^versionCode=' module/module.prop | cut -d= -f2)
+          # These values reach later shell steps and artifact names, so reject
+          # anything that is not a plain version string before exporting them.
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$ ]] || { echo "::error::Invalid version in module.prop"; exit 1; }
+          [[ "$VERSION_CODE" =~ ^[0-9]+$ ]] || { echo "::error::Invalid versionCode in module.prop"; exit 1; }
+          {
+            echo "VERSION=${VERSION}"
+            echo "VERSION_CODE=${VERSION_CODE}"
+            echo "ZIP_NAME=bt-stability-helper-v${VERSION}.zip"
+          } >> "$GITHUB_ENV"
           ZIP_NAME="bt-stability-helper-v${VERSION}.zip"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "version_code=${VERSION_CODE}" >> "$GITHUB_OUTPUT"
@@ -90,7 +106,6 @@ jobs:
       - name: Verify stable release version
         shell: bash
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           case "$VERSION" in
             *-testing|*-alpha*|*-beta*|*-rc*)
               echo "Refusing to publish prerelease version $VERSION from main"
@@ -129,23 +144,23 @@ jobs:
         shell: bash
         run: |
           cd module
-          zip -r -9 "../${{ steps.version.outputs.zip_name }}" .
+          zip -r -9 "../${ZIP_NAME}" .
 
       - name: Validate Magisk zip layout
         shell: bash
         run: |
-          unzip -l "${{ steps.version.outputs.zip_name }}"
-          unzip -l "${{ steps.version.outputs.zip_name }}" | grep -q 'module.prop'
-          unzip -l "${{ steps.version.outputs.zip_name }}" | grep -q 'service.sh'
-          unzip -l "${{ steps.version.outputs.zip_name }}" | grep -q 'customize.sh'
-          unzip -l "${{ steps.version.outputs.zip_name }}" | grep -q 'companion.apk'
-          unzip -p "${{ steps.version.outputs.zip_name }}" module.prop | grep -q '^version=${{ steps.version.outputs.version }}$'
-          unzip -p "${{ steps.version.outputs.zip_name }}" module.prop | grep -q '^versionCode=${{ steps.version.outputs.version_code }}$'
-          unzip -p "${{ steps.version.outputs.zip_name }}" module.prop | grep -q '^updateJson='
+          unzip -l "${ZIP_NAME}"
+          unzip -l "${ZIP_NAME}" | grep -q 'module.prop'
+          unzip -l "${ZIP_NAME}" | grep -q 'service.sh'
+          unzip -l "${ZIP_NAME}" | grep -q 'customize.sh'
+          unzip -l "${ZIP_NAME}" | grep -q 'companion.apk'
+          unzip -p "${ZIP_NAME}" module.prop | grep -qxF "version=${VERSION}"
+          unzip -p "${ZIP_NAME}" module.prop | grep -qxF "versionCode=${VERSION_CODE}"
+          unzip -p "${ZIP_NAME}" module.prop | grep -q '^updateJson='
 
       - name: Generate SHA-256 checksum
         shell: bash
-        run: sha256sum "${{ steps.version.outputs.zip_name }}" > "${{ steps.version.outputs.zip_name }}.sha256"
+        run: sha256sum "${ZIP_NAME}" > "${ZIP_NAME}.sha256"
 
       - name: Create version tag
         id: tag
@@ -154,7 +169,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG="v${{ steps.version.outputs.version }}"
+          TAG="v${VERSION}"
           git fetch --tags --force
 
           if git rev-parse "$TAG" >/dev/null 2>&1; then
