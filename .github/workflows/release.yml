@@ -11,17 +11,49 @@ on:
       - 'update.json'
       - 'CHANGELOG.md'
       - '.github/workflows/release.yml'
+      - '.github/actions/**'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  release:
+  # A push that does not change the module version (docs, CI, tests) must not
+  # fail the pipeline or republish: release only when the version tag is new
+  # or already points at this commit.
+  gate:
     runs-on: ubuntu-24.04
+    outputs:
+      release_needed: ${{ steps.check.outputs.release_needed }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Check whether this version is already released
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(grep '^version=' module/module.prop | cut -d= -f2)
+          TAG="v${VERSION}"
+          TAG_SHA=$(git ls-remote origin "refs/tags/${TAG}^{}" | cut -f1)
+          [ -n "$TAG_SHA" ] || TAG_SHA=$(git ls-remote origin "refs/tags/${TAG}" | cut -f1)
+          if [ -n "$TAG_SHA" ] && [ "$TAG_SHA" != "$GITHUB_SHA" ]; then
+            echo "::notice::${TAG} is already released at ${TAG_SHA}; skipping release. Bump module.prop and update.json to publish a new version."
+            echo "release_needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "release_needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    needs: gate
+    if: needs.gate.outputs.release_needed == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Read module version
         id: version
@@ -142,7 +174,7 @@ jobs:
           echo "name=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Create or update GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3
         with:
           name: Bluetooth Stability Helper v${{ steps.version.outputs.version }}
           tag_name: ${{ steps.tag.outputs.name }}

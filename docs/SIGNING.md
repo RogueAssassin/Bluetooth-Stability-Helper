@@ -37,3 +37,8 @@ gradle :app:verifyBshSigningConfigured :app:assembleRelease
 ```
 
 Do not publish locally signed APKs unless they use the canonical BSH release key.
+
+## Where the identity is enforced
+
+- **CI:** the companion-app, package and release workflows all build through the shared `.github/actions/build-signed-companion` composite action, which restores the keystore, builds the release APK and fails unless the APK certificate SHA-256 matches `BSH_SIGNING_CERT_SHA256`.
+- **On device:** the module installer does not re-verify the certificate itself; Android's package manager rejects an update signed with a different key (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`), which the installer reports without removing app data. The installer also records the installed companion's certificate digest (`bsh_companion_signature` in `module/scripts/install_utils.sh`) in the install report, so it can be compared against the canonical fingerprint during support.

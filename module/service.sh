@@ -16,7 +16,7 @@ echo $$ > "$LOCK_DIR/pid"
 trap 'rm -rf "$LOCK_DIR" 2>/dev/null' EXIT INT TERM
 CONFIG_DIR="/sdcard/Bluetooth-Stability-Helper"
 LOG="$CONFIG_DIR/logs/bt-stability.log"
-STATE_DIR="$CONFIG_DIR/state"
+STATE_DIR="/data/adb/bsh-state"
 EXPORT_DIR="$CONFIG_DIR/export"
 USERCFG="$CONFIG_DIR/user-config.sh"
 RESTARTS_FILE="$STATE_DIR/restarts.txt"
@@ -36,6 +36,10 @@ LAST_INTERACTION_RECOVERY_FILE="$STATE_DIR/last_interaction_recovery"
 SERVICE_HEALTH_FAILURE_FILE="$STATE_DIR/service-health-failures"
 LAST_SELF_HEAL_FILE="$STATE_DIR/last-self-heal"
 mkdir -p "$STATE_DIR" "$CONFIG_DIR" "$CONFIG_DIR/logs" "$EXPORT_DIR" "$CONFIG_DIR/import" "$CONFIG_DIR/metrics"
+chmod 700 "$STATE_DIR" 2>/dev/null
+# Runtime state moved off shared storage in v1.11.2. Remove the stale legacy copy so
+# no decision input (or sourced config) is ever read from an app-writable path.
+remove_legacy_shared_state() { [ -d "$CONFIG_DIR/state" ] && rm -rf "$CONFIG_DIR/state" 2>/dev/null; return 0; }
 . "$MODDIR/common/config.sh"
 . "$MODDIR/scripts/lib.sh"
 . "$MODDIR/scripts/telemetry.sh"
@@ -218,9 +222,21 @@ bt_process_count() {
   if [ "$count" -eq 0 ] && ps -A 2>/dev/null | grep -iE 'com\.android\.bluetooth|android\.hardware\.bluetooth|vendor\..*bluetooth' | grep -v grep >/dev/null 2>&1; then count=1; fi
   echo "$count"
 }
+# One bluetooth_manager snapshot per watchdog tick. The manager check, the ACL
+# observer and every health-score computation reuse it instead of each issuing
+# their own dumpsys; recovery verification refreshes it explicitly.
+BT_DUMP_FILE="$STATE_DIR/bt-manager.dump"
+refresh_bt_dump() {
+  if dumpsys bluetooth_manager 2>/dev/null > "$BT_DUMP_FILE.tmp" && [ -s "$BT_DUMP_FILE.tmp" ]; then
+    mv "$BT_DUMP_FILE.tmp" "$BT_DUMP_FILE" 2>/dev/null
+  else
+    rm -f "$BT_DUMP_FILE" "$BT_DUMP_FILE.tmp" 2>/dev/null
+  fi
+}
+bt_dump() { if [ -s "$BT_DUMP_FILE" ]; then cat "$BT_DUMP_FILE"; else dumpsys bluetooth_manager 2>/dev/null; fi; }
 health_bad_state() {
   [ "$(bt_enabled_setting)" = 1 ] || return 1
-  summary="$(dumpsys bluetooth_manager 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+  summary="$(bt_dump | tr '[:upper:]' '[:lower:]')"
   [ -n "$summary" ] || return 1
   echo "$summary" | grep -Eq 'state:.*on|state *= *on|enabled: *true|isenabled\(\): *true' && return 1
   echo "$summary" | grep -Eq 'state:.*off|state *= *off|enabled: *false|isenabled\(\): *false' && return 0
@@ -250,7 +266,7 @@ pixel_connectivity_snapshot() {
     echo "Build: $(getprop ro.build.id) / $(getprop ro.build.fingerprint)"
     echo "SDK: $(getprop ro.build.version.sdk)"
     echo
-    echo "--- bluetooth_manager summary ---"; dumpsys bluetooth_manager 2>/dev/null | head -220
+    echo "--- bluetooth_manager summary ---"; bt_dump | head -220
     echo
     echo "--- bluetooth_manager proto size check ---"; dumpsys bluetooth_manager --proto 2>/dev/null | wc -c
     echo
@@ -316,10 +332,9 @@ scan_stall_patterns() {
 acl_instability_patterns() {
   [ "${ENABLE_ACL_INSTABILITY_GUARD:-1}" = 1 ] || return 1
   [ "$(bt_enabled_setting)" = 1 ] || return 1
-  dump_tmp="$STATE_DIR/acl-dump.tmp"
-  dumpsys bluetooth_manager 2>/dev/null > "$dump_tmp" || { rm -f "$dump_tmp" 2>/dev/null; return 1; }
-  new=$(acl_new_abnormal_count "$dump_tmp")
-  rm -f "$dump_tmp" 2>/dev/null
+  [ -s "$BT_DUMP_FILE" ] || refresh_bt_dump
+  [ -s "$BT_DUMP_FILE" ] || return 1
+  new=$(acl_new_abnormal_count "$BT_DUMP_FILE")
   case "$new" in ''|*[!0-9]*) new=0 ;; esac
   [ "$new" -gt 0 ] && acl_record_new_events "$new"
   count=$(acl_abnormal_window_count); case "$count" in ''|*[!0-9]*) count=0 ;; esac
@@ -395,6 +410,7 @@ repair_audio_route() { [ "$ENABLE_AUDIO_ROUTE_REPAIR" = 1 ] || return; cmd media
 verify_recovery_outcome() {
   [ "$(bt_enabled_setting)" = 1 ] || return 1
   [ "$(bt_process_count)" -gt 0 ] || return 1
+  refresh_bt_dump
   health_bad_state && return 1
   return 0
 }
@@ -520,6 +536,7 @@ main_loop() {
   set_recovery_state "HEALTHY"
   while true; do
     echo "$(date +%s)" > "$STATE_DIR/service-heartbeat" 2>/dev/null
+    refresh_bt_dump
     rotate_log_if_needed; cleanup_restart_history; cap_runtime_files; ensure_files; service_self_check
     refresh_recovery_state
     . "$MODDIR/common/config.sh"; . "$MODDIR/scripts/lib.sh"; apply_adaptive_defaults
@@ -585,6 +602,7 @@ if [ "${MANAGER_API_ENABLED:-1}" = 1 ]; then
   manager_api_write_status
 fi
 wait_until_boot_complete
+remove_legacy_shared_state
 ensure_files
 cleanup_boot_logs
 log "Bluetooth Stability Helper $(module_version) adaptive engine start"

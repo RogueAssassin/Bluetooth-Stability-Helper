@@ -4,8 +4,8 @@
 
 TELEMETRY_DIR="${CONFIG_DIR:-/sdcard/Bluetooth-Stability-Helper}/metrics"
 EVENT_HISTORY_FILE="${EVENT_HISTORY_FILE:-$TELEMETRY_DIR/events.jsonl}"
-RECOVERY_STATE_FILE="${RECOVERY_STATE_FILE:-${STATE_DIR:-/sdcard/Bluetooth-Stability-Helper/state}/recovery-state}"
-LAST_RECOVERY_OUTCOME_FILE="${LAST_RECOVERY_OUTCOME_FILE:-${STATE_DIR:-/sdcard/Bluetooth-Stability-Helper/state}/last-recovery-outcome}"
+RECOVERY_STATE_FILE="${RECOVERY_STATE_FILE:-${STATE_DIR:-/data/adb/bsh-state}/recovery-state}"
+LAST_RECOVERY_OUTCOME_FILE="${LAST_RECOVERY_OUTCOME_FILE:-${STATE_DIR:-/data/adb/bsh-state}/last-recovery-outcome}"
 TELEMETRY_SCHEMA_VERSION=1
 
 telemetry_init() {

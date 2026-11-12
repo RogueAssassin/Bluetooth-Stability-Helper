@@ -131,7 +131,6 @@ Shared-storage configuration is parsed as a restricted set of validated scalar v
 ├── install-report.txt
 ├── status.txt
 ├── logs/
-├── state/
 ├── metrics/
 ├── export/
 ├── api/

@@ -2,7 +2,7 @@
 MODDIR=${0%/*}
 CONFIG_DIR="/sdcard/Bluetooth-Stability-Helper"
 LOG="$CONFIG_DIR/logs/bt-stability.log"
-STATE_DIR="$CONFIG_DIR/state"
+STATE_DIR="/data/adb/bsh-state"
 USERCFG="$CONFIG_DIR/user-config.sh"
 fail=0
 warn=0

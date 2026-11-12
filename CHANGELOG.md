@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.11.2
+- Security: moved runtime state from `/sdcard/Bluetooth-Stability-Helper/state/` to the root-only `/data/adb/bsh-state/`. The validated config copy that the root service sources was previously written to shared storage, where an app with broad storage access could have replaced it between validation and sourcing. Fault counters, cooldown and restart history are no longer app-writable either.
+- The legacy shared-storage `state/` directory is removed at service start; counters reset once after updating. Logs, metrics, exports, the API mirror and `user-config.sh` stay under `/sdcard`.
+- Uninstall now removes `/data/adb/bsh-state`. The companion app reads the diagnostic-bundle pointer from the private location.
+- Performance: the watchdog now takes one `dumpsys bluetooth_manager` snapshot per tick and reuses it for the manager check, ACL observer, health score and connectivity snapshot (previously three to six calls per tick); recovery verification refreshes it explicitly.
+- CI hardening: third-party and first-party actions are pinned to commit SHAs (Dependabot now also tracks the composite action), `package` and `companion-app` run with a read-only token, and the release job alone holds `contents: write`.
+- CI: a push to `main` that does not change the module version now skips the release with a notice instead of failing on the existing tag; changes under `.github/actions/` trigger the workflows that use them.
+- Docs: `docs/SIGNING.md` describes where the signing identity is enforced in CI and on device.
+
 ## v1.11.1
 - Build/CI only: extracted the duplicated companion-app signing sequence (toolchain setup, keystore restore, signed build, certificate SHA-256 verification) into a shared `.github/actions/build-signed-companion` composite action used by the companion-app, package and release workflows. No module or app behavior change.
 
