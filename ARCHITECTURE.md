@@ -77,7 +77,7 @@ flowchart LR
     Defaults[Profile defaults] --> Engine[Watchdog engine]
     Parser --> Engine
     Obs --> Engine
-    Engine --> State[state/]
+    Engine --> State[root-only /data/adb/bsh-state/]
     Engine --> Metrics[metrics/]
     Engine --> Logs[logs/]
     Engine --> Status[status.txt]
@@ -165,7 +165,7 @@ The module does not add Zygisk, Xposed, ART hooks, remote command execution, Pla
 
 ## Runtime resilience
 
-The v1.7 service performs a lightweight self-check every two minutes. It verifies writable state/metrics storage and watches for the specific case where Android reports Bluetooth enabled but no known Bluetooth process exists. Repeated degradation is recorded as bounded telemetry; the self-check does not independently restart Bluetooth or bypass the normal evidence/cooldown recovery ladder.
+The service performs a lightweight self-check every two minutes. It verifies writable state/metrics storage and watches for the specific case where Android reports Bluetooth enabled but no known Bluetooth process exists. Repeated degradation is recorded as bounded telemetry; the self-check does not independently restart Bluetooth or bypass the normal evidence/cooldown recovery ladder.
 
 ## Companion-app boundary
 
